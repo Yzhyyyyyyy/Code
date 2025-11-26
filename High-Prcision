@@ -1,0 +1,161 @@
+#include<bits/stdc++.h>
+using namespace std;
+typedef long long ll;
+int a[100000],b[100000],c[100000];
+int lena,lenb,num;
+
+int get(int a[]) {//读取大数,换行输入
+   string s;
+   cin >> s;
+   int len = s.size();
+   memset(a,0,sizeof(int) * 100000);
+   for (int i = 0; i < len; i++) {
+      a[i] = s[len - 1 - i] - '0';
+   }
+   return len;
+}
+
+
+void print(int c[]) {
+   int i=0;
+   for (i=99999; i>=0; i--) {
+      if (c[i]!=0)
+         break;
+   }
+   if (i==-1) {
+      cout<<0<<endl;
+   }
+   while (i>=0) {
+      cout<<c[i];
+      i--;
+   }
+   cout<<endl;
+}
+
+
+void add(int a[], int b[],int c[]) {
+   int leave=0;
+   for (int i=0;i<100000;i++) {
+      c[i]=(a[i]+b[i]+leave)%10;
+      leave=(a[i]+b[i]+leave)/10;
+   }
+}
+
+
+bool bigger(int a[], int b[]) {//判断a是不是比b大或相等
+   int highA = 99999;
+   while (highA >= 0 && a[highA] == 0) highA--;
+   int highB = 99999;
+   while (highB >= 0 && b[highB] == 0) highB--;
+   if (highA > highB) return true;
+   if (highA < highB) return false;
+   for (int i = highA; i >= 0; i--) {
+      if (a[i] > b[i]) return true;
+      if (a[i] < b[i]) return false;
+   }
+   return true;
+}
+
+
+void swapArr(int x[], int y[]) {//交换两个数组的内容
+   int temp[100000];
+   memcpy(temp, x, sizeof(int) *100000);
+   memcpy(x, y, sizeof(int) * 100000);
+   memcpy(y, temp, sizeof(int) * 100000);
+}
+
+
+void subtract(int a[], int b[],int c[]) {
+   if (!bigger(a,b)) {
+      cout<<'-';
+      swapArr(a,b);
+   }
+   memset(c, 0, sizeof(int) * 100000);
+   int borrow=0;
+      for (int i=0;i<100000;i++) {
+         c[i]=a[i]-b[i]-borrow;
+         if (c[i]<0) {
+         c[i]+=10;
+            borrow=1;
+         }
+         else borrow=0;
+      }
+   }
+
+
+int multiply_10(int num,int n) {
+   while (n--) {
+      num=num*10;
+   }
+   return num;
+}
+
+
+void multiply_number(int num,int n,int a[],int c[]) {//num*10^n
+   int leave=0;
+   memset(c,0,sizeof(int) * 100000);
+for (int i=0;i<4000;i++) {
+   c[i+n]=(a[i]*num+leave)%10;
+   leave=(a[i]*num+leave)/10;
+}
+}
+
+void multiply(int a[], int b[],int c[]) {
+   memset(c,0,sizeof(int) * 100000);
+   for (int i=0;i<lena;i++) {
+     for (int j=0;j<lenb;j++) {
+        c[i+j]+=a[i]*b[j];
+     }
+   }
+   int leave=0;
+   for (int i=0;i<4000;i++) {
+      int tem=c[i]+leave;
+      c[i]=(c[i]+leave)%10;
+      leave=tem/10;
+   }
+}
+
+
+ll divide(int a[], int num,int c[]) {//仅保留整数部分，高精度对低精度,返回余数
+   memset(c,0,sizeof(int) * 100000);
+   int highA = 99999;
+   while (highA >= 0 && a[highA] == 0) highA--;
+   if (highA == -1) {
+      return 0;
+   }
+   int result[100000];
+   int q=0;
+   ll leave=0;
+   for (int i=highA;i>=0;i--) {
+      leave=leave*10+a[i];
+if (leave>=0&&leave<num) {
+   result[q++]=0;
+}
+else {
+   result[q++]=leave/num;
+   leave=leave%num;
+}
+   }
+   int start = 0;
+   while (start < q && result[start] == 0) start++;
+   if (start == q) {
+      c[0] = 0;
+   } else {
+      for (int i = 0; i < q - start; i++) {
+         c[i] = result[q - 1 - i];
+      }
+   }
+   return leave;
+}
+
+
+int main() {
+   memset(a, 0, sizeof(a));
+   memset(b, 0, sizeof(b));
+   memset(c, 0, sizeof(c));
+   lena=get(a);
+   cin>>num;
+   divide(a,num,c);
+   print(c);
+   return 0;
+}
