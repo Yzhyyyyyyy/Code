@@ -1,0 +1,32 @@
+// DFS
+#include <vector>
+using namespace std;
+
+// 回溯框架模板
+void backtrack(vector<int>& path, vector<bool>& visited, 
+               vector<vector<int>>& result, int n) {
+    
+    // ① 如果完成一条路径，函数返回
+    if (path.size() == n) {
+        result.push_back(path);
+        return;
+    }
+    
+    for (int i = 0; i < n; i++) {
+        if (visited[i]) continue;
+        
+        // 标记该位置并移动，进行递推
+        visited[i] = true;
+        path.push_back(i);
+        
+        // 递归探索
+        backtrack(path, visited, result, n);
+        
+        // ② 如果路不通，返回到箭头处，进行回溯
+        // ③ 回溯完成后仍在循环中，进行接下来的方向判定
+        
+        // TIP: 提前结束也要回溯，使这一段没有产生改变
+        path.pop_back();
+        visited[i] = false;
+    }
+}
