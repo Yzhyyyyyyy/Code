@@ -1,0 +1,36 @@
+// 计算 a^b mod p （时间复杂度 O(log b)）
+
+long long fastPower(long long a, long long b, long long p) {
+    long long result = 1;        // 初始化结果 result = 1
+    long long base = a % p;      // 初始化底数 base = a mod p
+    
+    while (b > 0) {
+        // if (b 奇数): result *= base
+        if (b & 1) {
+            result = (result * base) % p;
+        }
+        
+        // base 平方
+        base = (base * base) % p;
+        
+        // b /= 2
+        b >>= 1;
+    }
+    
+    return result;
+}
+
+// 递归版本快速幂
+long long fastPowerRecursive(long long a, long long b, long long p) {
+    if (b == 0) return 1 % p;
+    
+    long long half = fastPowerRecursive(a, b / 2, p);
+    long long result = (half * half) % p;
+    
+    // if (b 奇数)
+    if (b & 1) {
+        result = (result * a) % p;
+    }
+    
+    return result;
+}
