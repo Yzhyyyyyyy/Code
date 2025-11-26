@@ -4,7 +4,16 @@ typedef long long ll;
 int a[100000],b[100000],c[100000];
 int lena,lenb,num;
 
-int get(int a[]) {//读取大数,换行输入
+
+void change(ll num,int a[]){
+int i=0;
+while(num){
+a[i]=num%10;
+num/=10;
+}
+}
+
+int get(int a[]) {//读取大数,换行输入,返回长度
    string s;
    cin >> s;
    int len = s.size();
