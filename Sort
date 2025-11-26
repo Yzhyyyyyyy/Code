@@ -1,0 +1,51 @@
+#include <algorithm>
+#include <vector>
+using namespace std;
+
+// 自定义比较函数模板
+bool cmp(int a, int b) {
+    // return a是否排在b前面的逻辑
+    return a < b; // 升序示例
+}
+
+// 标准排序使用
+// sort(首元素地址, 末元素地址+1, cmp)
+// 例如: sort(num, num+n, cmp) 或 sort(num.begin(), num.end(), cmp)
+
+// 稳定排序 - 针对排序后仅少量改变的数据
+// stable_sort(num.begin(), num.end(), cmp)
+
+// 第n元素排序 - 将第n小的元素放到正确位置
+// nth_element(开始, 第n元素位置, 结束, cmp)
+// 例如找中位数: nth_element(arr.begin(), arr.begin() + n/2, arr.end())
+
+// 归并排序核心思路
+void mergeSort(vector<int>& arr, int begin, int end) {
+    if (begin >= end) return;
+    
+    int mid = begin + (end - begin) / 2;
+    mergeSort(arr, begin, mid);
+    mergeSort(arr, mid + 1, end);
+    
+    // 归并过程
+    vector<int> temp(end - begin + 1);
+    int i = begin, j = mid + 1, k = 0;
+    
+    // 不断移动，数小的填入temp
+    while (i <= mid && j <= end) {
+        if (arr[i] <= arr[j]) {
+            temp[k++] = arr[i++];
+        } else {
+            temp[k++] = arr[j++];
+        }
+    }
+    
+    // 将余下的全填入temp
+    while (i <= mid) temp[k++] = arr[i++];
+    while (j <= end) temp[k++] = arr[j++];
+    
+    // 复制回原数组
+    for (int idx = begin, k = 0; idx <= end; idx++, k++) {
+        arr[idx] = temp[k];
+    }
+}
