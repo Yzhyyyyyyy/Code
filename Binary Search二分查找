@@ -1,0 +1,44 @@
+#include <vector>
+#include <cstring> // memset头文件
+using namespace std;
+
+// 判断函数 - 用于"最大值最小"或"最小值最大"问题
+bool judge(int mid, vector<int>& nums, int k) {
+    // 根据具体问题实现判断逻辑
+    // 返回mid值是否满足题目条件
+    int count = 1;
+    int current = 0;
+    
+    for (int num : nums) {
+        if (current + num > mid) {
+            count++;
+            current = num;
+            if (count > k) return false;
+        } else {
+            current += num;
+        }
+    }
+    return true;
+}
+
+// 二分查找模板
+int binarySearch(vector<int>& nums, int k) {
+    int left = *max_element(nums.begin(), nums.end()); // 下界
+    int right = accumulate(nums.begin(), nums.end(), 0); // 上界
+    
+    while (left < right) {
+        // 取mid = (left + right + 1) / 2 避免死循环
+        int mid = left + (right - left) / 2;
+        
+        if (judge(mid, nums, k)) {
+            right = mid; // 满足条件，尝试更小的值
+        } else {
+            left = mid + 1; // 不满足条件，需要更大的值
+        }
+    }
+    
+    return left;
+}
+
+// memset快速初始化
+// memset(num, 0, sizeof(num)) // 将数组初始化为0
