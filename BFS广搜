@@ -43,9 +43,10 @@ int islaw(int tx,int ty,int n,int m,int num[][m],int path[][m]) {
     else return 0;
 }
 
-queue<locate> q;//队列q
+
 //x,y为输入的起始点位置
 int BFS(int x,int y,int m,int n,int num[][m],int path[][m]) {
+queue<locate> q;//队列q(注意：不能是全局变量，不然会有上次BFS的残留值)
 path[x][y]=1;//从起始元素开始，判定已经检测过
 q.push(locate(x,y,0));
     while(!q.empty()) {
