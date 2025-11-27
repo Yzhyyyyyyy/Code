@@ -1,0 +1,68 @@
+#include<queue>
+#include<iostream>
+using namespace std;
+
+//初始化：标记起点为已访问，将起点入队；
+//循环遍历：队列非空时，出队队首节点，访问该节点；
+//扩展节点：遍历队首节点的所有邻接节点，若未访问则标记为已访问并入队；
+//终止条件：队列为空（所有可达节点遍历完毕）。
+
+
+//queue相关知识：
+// BFS 中存储节点编号（int 类型）
+//定义：queue<int> q;
+
+//q.push(val)	队尾入队：将 val 加入队列尾部（BFS 中 “邻接节点入队” 用这个）
+//q.pop()	队首出队：删除队列第一个元素（无返回值！BFS 中 “处理完当前节点后弹出” 用这个）
+
+//q.front()	返回队首元素的引用（BFS 中 “获取当前要处理的节点” 用这个）
+//q.back()	返回队尾元素的引用（BFS 中极少用，除非需要操作最后入队的节点）
+
+//q.empty()	判断队列是否为空（返回 bool，BFS 循环条件 while (!q.empty()) 用这个）
+//q.size()	返回队列中元素的个数（BFS 中可用于统计遍历的节点数，或调试时查看队列状态）
+
+//注意：q.pop无返回值，仅用于删除文件
+//queue中使用多个元素，则构建struct
+
+
+//迷宫最短路径检索
+typedef struct {
+    int x;
+    int y;
+    int num;//纪录步数
+}locate;
+int dx[4]={0,1,0,-1};
+int dy[4]={1,0,-1,0};
+//迷宫n行m列
+//num为已知条件，path记录可行路径
+//num中1表示可以行走，path中1表示已经走过（不可行走）
+//int num[n][m];
+int islaw(int tx,int ty,int n,int m,int num[][m],int path[][m]) {
+    if(tx<n&&ty<m&&num[tx][ty]==1&&path[tx][ty]==0&&tx>=0&&ty>=0)
+        return 1;
+    else return 0;
+}
+
+queue<locate> q;//队列q
+//x,y为输入的起始点位置
+int BFS(int x,int y,int m,int n,int num[][m],int path[][m]) {
+path[x][y]=1;//从起始元素开始，判定已经检测过
+q.push(locate(x,y,0));
+    while(!q.empty()) {
+        locate now=q.front();//得到队列首元素，进行处理
+        q.pop();//删除首元素
+        if (now.x==m-1&&now.y==n-1)//到终点
+            return now.num;//返回当前点走过的路程
+        for (int i=0;i<4;i++) {//循环实现四个方向移动
+            int tx=now.x+dx[i];
+            int ty=now.y+dy[i];
+            if (islaw(tx,ty,n,m,num,path))//如果合法，就加入队列
+            {
+             path[x][y]=1;//加入队列，则判断该位置已走过
+             q.push(locate(tx,ty,now.num+1));//步数要加一
+                
+            }
+        }
+    }
+    return -1;//如果不成立，就返回负一
+}
