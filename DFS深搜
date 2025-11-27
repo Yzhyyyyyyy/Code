@@ -6,6 +6,7 @@ int dx[4]={0,1,0,-1};
 int dy[4]={1,0,-1,0};
 //迷宫n行m列
 //num为已知条件，path记录可行路径
+//num中1表示可以行走，path中1表示已经走过（不可行走）
 int islaw(int tx,int ty,int n,int m,int num[][m],int path[][m]) {
     if(tx<n&&ty<m&&num[tx][ty]==1&&path[tx][ty]==0&&tx>=0&&ty>=0)
         return 1;
