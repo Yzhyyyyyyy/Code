@@ -18,7 +18,7 @@ void DFS(int x,int y,int m,int n,int num[][m],int path[][m]) {
     //重点：先写返回函数
     // ① 如果完成一条路径，函数返回
 if (x==n-1&&y==m-1) {
-    //进行操作（打印，计数...)
+    //进行操作（打印，计数...）
 }else {
     // 标记该位置并移动，进行递推
     for(int d=0;d<4;d++){//重点：此处使用循环，确保每个位置检查了四个方向
@@ -34,4 +34,44 @@ if (x==n-1&&y==m-1) {
         }
     }
       }
+}
+
+
+
+//n皇后问题
+int law(int x, int y, int n, int num[30][4]) {
+    // 检查列、主对角线、副对角线是否被占用
+    if (num[y][1] == 0 && num[x - y + n][2] == 0 && num[x + y][3] == 0)
+        return 1;
+    else
+        return 0;
+}
+
+void dfs(int x, int *di, int n, int result[100000][13], int num[30][4], int current[13]) {
+    if (x == n) {
+        // 重点：保存当前解
+//如果没有current数组，每次尝试都会修改result中的值，导致输出时result中不是一组正确答案，而是每个位置最后一次尝试成功的值
+        for (int i = 0; i < n; i++) {
+            result[*di][i] = current[i];
+        }
+        (*di)++;
+        return;
+    }
+    for (int y = 0; y < n; y++) {
+        if (law(x, y, n, num)) {
+            current[x] = y + 1;  // 记录当前选择
+            
+            // 标记占用
+            num[y][1] = 1;
+            num[x - y + n][2] = 1;
+            num[x + y][3] = 1;
+            
+            dfs(x + 1, di, n, result, num, current);
+            
+            // 回溯
+            num[y][1] = 0;
+            num[x - y + n][2] = 0;
+            num[x + y][3] = 0;
+        }
+    }
 }
