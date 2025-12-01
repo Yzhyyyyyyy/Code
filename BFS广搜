@@ -61,7 +61,7 @@ q.push(locate(x,y,0));
             {
              path[x][y]=1;//加入队列，则判断该位置已走过
              q.push(locate(tx,ty,now.num+1));//步数要加一
-                
+//注意，BFS中不需要多次递归使用函数                
             }
         }
     }
