@@ -85,7 +85,7 @@ struct node{
     int c;    // 核心2：当前坐标(x,y)的「颜色」（提前存在node里，避免每次查col数组，优化效率）
     int w;    // 核心3：到达当前坐标(x,y)的「总花费」（这是排序的核心依据）
 };
-
+//只需要重载小于号即可
 bool cmp <(struct b)const{  // const不可丢！记住！
     return w > b.w;  // 核心逻辑：当前struct的w > 另一个struct的w（b.w）时，返回true
 }
