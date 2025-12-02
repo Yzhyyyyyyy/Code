@@ -13,6 +13,8 @@ adj[v].push_back(u);
 //v.empty(): 告诉你 vector 是不是空的（返回 true/false）。
 //v.pop_back(): 把 vector 最后一个元素删掉（吐出来）。
 //v.clear(): 把 vector 清空。
+//这个集合的含义仅仅是两者相互联系，是不加权的
+//如果要表示加权，就应该使用结构体来写
 
 //遍历方式：
 for(int v : adj[u])
