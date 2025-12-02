@@ -55,3 +55,11 @@ int bfs_coloring(int startNode) {
 }
 //后续主函数中要对所有的可能点进行检测
 
+//主函数中的输入函数
+for(int i=0;i<m;i++) {
+    int a,b;
+    cin>>a>>b;
+    cp[a].push_back(b);
+    cp[b].push_back(a);
+}
+
