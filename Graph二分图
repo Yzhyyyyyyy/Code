@@ -1,0 +1,57 @@
+// 假设之前定义了： vector<int> adj[10005];
+// 这代表 adj 是一个数组，数组里的每一个元素都是一个 vector（变长列表）
+//双向构建，无边图
+adj[u].push_back(v); 
+// 意思：在“点 u”的邻居列表中，添加“点 v”。
+// 读作：u 连向了 v。
+adj[v].push_back(u); 
+// 意思：在“点 v”的邻居列表中，添加“点 u”。
+// 读作：v 连向了 u。
+//push_back是函数，在对应的vector后面加上该元素
+//相关：
+//v.size(): 告诉你 vector 里现在有几个元素（返回整数）。
+//v.empty(): 告诉你 vector 是不是空的（返回 true/false）。
+//v.pop_back(): 把 vector 最后一个元素删掉（吐出来）。
+//v.clear(): 把 vector 清空。
+
+//遍历方式：
+for(int v : adj[u])
+//翻译：“对于 adj[u] 这个容器里的每一个元素，把它取出来赋值给 v，然后执行一次循环。”
+//注意，adj[u]是一个vector
+//int 也可以换成auto
+
+
+//判断是不是二分图的方法
+const int MAXN = 10005;
+vector<int> road[MAXN]; // 邻接表：高阶思想-稀疏图存储
+int color[MAXN];       // 0:未染色, 1:颜色A, 2:颜色B
+int n, m;
+
+// 对一个连通块进行染色，返回该块最少需要的河蟹数
+// 如果无法染色（不是二分图），返回 -1
+int bfs_coloring(int startNode) {
+    queue<int> q;
+    q.push(startNode);
+    color[startNode] = 1; // 默认起点染颜色1
+    while(!q.empty()) {
+        int u = q.front();
+        q.pop();
+
+        // 遍历所有邻居 
+        for(int v : road[u]) {
+            if(color[v] == 0) {
+                // 没染过色，染成相反颜色
+                color[v] = 3 - color[u]; // 1变2，2变1
+                if(color[v] == 1) cnt1++;
+                else cnt2++;
+                q.push(v);
+            }
+            else if(color[v] == color[u]) {
+                // 颜色冲突，说明不是二分图
+                return -1;
+            }
+        }
+    }
+}
+//后续主函数中要对所有的可能点进行检测
+
