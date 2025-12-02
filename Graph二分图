@@ -57,11 +57,61 @@ int bfs_coloring(int startNode) {
 }
 //后续主函数中要对所有的可能点进行检测
 
+
 //主函数中的输入函数
 for(int i=0;i<m;i++) {
     int a,b;
     cin>>a>>b;
     cp[a].push_back(b);
     cp[b].push_back(a);
+//此处如果加权的话使用结构体edge：
+int w;
+cin>>w;
+ cp[u].push_back({v, w});
+ cp[v].push_back({u, w});
 }
 
+
+
+//搭配二分法的判断（输入值，判断是否可以构建粗略二分表）
+//怒气值在limit一下的可以试做没有bridge
+// 返回 1 表示成功(无冲突)，0 表示失败(有冲突)
+int bfs(int start, int limit) {
+    queue<int> q;
+    q.push(start);
+    crime[start] = 1;
+    
+    while (!q.empty()) {
+        int cur = q.front();
+        q.pop();
+        
+        for (auto i : cp[cur]) {
+            // 如果这条边的怒气值 <= 限制，假装没看见，不走这条边
+            if (i.angry <= limit) continue;
+
+            if (crime[i.to] == 0) {
+                crime[i.to] = 3 - crime[cur];
+                q.push(i.to);
+            }
+            else if (crime[i.to] == crime[cur]) {
+                return 0; // 发现冲突，立即返回失败
+            }
+        }
+    }
+    return 1; // 
+}
+
+//二分函数
+bool gudge(int n, int limit) {
+    
+    memset(crime, 0, sizeof(crime));
+    
+    for (int i = 1; i <= n; i++) {
+        if (crime[i] == 0) {
+            if (bfs(i, limit) == 0) return false;
+//一个不满足就全体结束，返回不满足（right=mid-1）
+        }
+    }
+    return true;
+//全部成立，这个limit才成立（left=mid+1）
+}
