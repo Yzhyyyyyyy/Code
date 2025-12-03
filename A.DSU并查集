@@ -1,0 +1,91 @@
+const int N = 10005;
+int fa[N]; // fa[i] 存储 i 的直接上级
+
+// 【初始化】
+// 每个人最开始都是自己的老大（孤立点）
+void init(int n) {
+    for (int i = 1; i <= n; i++) {
+        fa[i] = i; 
+    }
+}
+
+// 【查询 + 路径压缩】(重点！)
+// 疑惑解答：为什么写成 return fa[x] = find(fa[x])？
+// 逻辑拆解：
+// 1. find(fa[x]): 先递归向上找，直到找到最终的“祖宗”。
+// 2. fa[x] = ...: 把 x 的直接上级改为这个“祖宗”。(这就是路径压缩，下次再查 x 就是 O(1) 了)
+// 3. return ... : 返回祖宗的编号。
+// 作用：把长长的“链表”结构瞬间拍扁，让所有人直接挂在祖宗下面。
+int find(int x) {
+    if (x == fa[x]) return x; // 递归出口：如果上级是自己，那自己就是祖宗
+    return fa[x] = find(fa[x]); 
+    //等价于赋值之后再返回新的fa[x]
+}
+
+// 【合并】
+void join(int x, int y) {
+    int fx = find(x);
+    int fy = find(y);
+    if (fx != fy) {
+        fa[fx] = fy; // 让 x 的老大认 y 的老大做上级
+    }
+}
+
+
+//面对处理敌人的问题，要使用加权并查表：
+
+const int N = 20005; // 【注意】空间要开 2 倍！(N + N)
+int fa[N]; 
+
+// 【初始化】
+// 无论是本体还是影子，最开始都是独立的
+void init(int n) {
+    // 注意循环范围是 2*n
+    for (int i = 1; i <= 2 * n; i++) {
+        fa[i] = i; 
+    }
+}
+//【主体部分】
+void solve(int n, int m) {
+    init(n);
+    
+    for(int i = 0; i < m; i++) {
+        char type; 
+        int u, v;
+        cin >> type >> u >> v;
+        
+        if (type == 'F') { 
+            // 情况1：u 和 v 是朋友
+            // 逻辑：朋友的朋友是朋友，朋友的敌人也是敌人
+            join(u, v);           // 1. 本体连本体
+            join(u + n, v + n);   // 2. 影子连影子 (关键！别漏了)
+        } 
+        else { 
+            // 情况2：u 和 v 是敌人
+            // 逻辑：敌人的敌人是朋友
+            // u 的敌人域(u+n) 就是 v 的朋友域(v)
+            join(u + n, v);       // 1. 我的影子 连 你的本体
+            join(u, v + n);       // 2. 我的本体 连 你的影子
+        }
+    }
+    // 统计部分略...
+}
+
+
+
+//含有加权的问题时，可以使用结构体（其实多写一个cmp感觉还简单些）
+//这个结构体二分图中也有使用
+struct Edge {
+    int u, v; // 连接的两个点
+    int w;    // 权值 (weight)
+
+    // 【重载小于号 <】(重点！)
+    // 作用：告诉 std::sort 怎么比较两个 Edge
+    // 语法解析：
+    // 1. const Edge &other : 引用传递，避免拷贝，加 const 防止误改
+    // 2. const (函数尾) : 保证这个函数不会修改自身的数据
+    bool operator<(const Edge &other) const {
+        return w < other.w; // 按权值【从小到大】排序
+        // 如果要从大到小，改成 return w > other.w;
+    }
+};
