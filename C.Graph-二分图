@@ -1,7 +1,8 @@
+#include <iostream>
 //邻接图adj：
 // 假设之前定义了： vector<int> adj[10005];
 // 这代表 adj 是一个数组，数组里的每一个元素都是一个 vector（变长列表）
-//双向构建，无边图
+//双向构建，无边图（无加权，仅仅表示连接）
 adj[u].push_back(v); 
 // 意思：在“点 u”的邻居列表中，添加“点 v”。
 // 读作：u 连向了 v。
@@ -9,6 +10,12 @@ adj[v].push_back(u);
 // 意思：在“点 v”的邻居列表中，添加“点 u”。
 // 读作：v 连向了 u。
 //push_back是函数，在对应的vector后面加上该元素
+//双向构建，无边图（含加权，表示连接与两者关系权重）
+typedef struct{
+int to, w;
+}code;
+adj[u].push_back(code{v,w});
+adj[v].push_back(code{u,w}); 
 //相关：
 //v.size(): 告诉你 vector 里现在有几个元素（返回整数）。
 //v.empty(): 告诉你 vector 是不是空的（返回 true/false）。
@@ -17,8 +24,21 @@ adj[v].push_back(u);
 //这个集合的含义仅仅是两者相互联系，是不加权的
 //如果要表示加权，就应该使用结构体来写
 
+//输入方式：
+void add() {
+    int u, v, w;
+    cin>>u>>v>>w;
+    adj[u].push_back(code{v,w});
+    adj[v].push_back(code{u,w}); 
+}
+
+
 //遍历方式：
-for(int v : adj[u])
+    for(int v : adj[u])
+    for(code now : adj[u]) {
+        v=now.to;
+        w=now.w;
+    }
 //翻译：“对于 adj[u] 这个容器里的每一个元素，把它取出来赋值给 v，然后执行一次循环。”
 //注意，adj[u]是一个vector
 //int 也可以换成auto
@@ -59,26 +79,12 @@ int bfs_coloring(int startNode) {
 //后续主函数中要对所有的可能点进行检测
 
 
-//主函数中的输入函数
-for(int i=0;i<m;i++) {
-    int a,b;
-    cin>>a>>b;
-    cp[a].push_back(b);
-    cp[b].push_back(a);
-//此处如果加权的话使用结构体edge：
-int w;
-cin>>w;
- cp[u].push_back({v, w});
- cp[v].push_back({u, w});
-}
-
-
-
 //搭配二分法的判断（输入值，判断是否可以构建粗略二分表）
 //怒气值在limit以下的可以试做没有bridge
 // 返回 1 表示成功(无冲突)，0 表示失败(有冲突)
 int bfs(int start, int limit) {
     queue<int> q;
+    //仅仅入队列一个点的位置，后续读取时将这个位置作为邻接表的参数，读取所有相连的点位置
     q.push(start);
     crime[start] = 1;
     
