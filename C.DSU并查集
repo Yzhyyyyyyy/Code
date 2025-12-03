@@ -18,7 +18,7 @@ void init(int n) {
 // 作用：把长长的“链表”结构瞬间拍扁，让所有人直接挂在祖宗下面。
 int find(int x) {
     if (x == fa[x]) return x; // 递归出口：如果上级是自己，那自己就是祖宗
-    return fa[x] = find(fa[x]); 
+    return fa[x] = find(fa[x]); //注意这里是find（fa[x]），不是find（x），否则会无限找自己
     //等价于赋值之后再返回新的fa[x]
 }
 
@@ -32,7 +32,8 @@ void join(int x, int y) {
 }
 
 
-//面对处理敌人的问题，要使用加权并查表：
+
+//面对处理敌人的问题，要使用扩展并查表：
 
 const int N = 20005; // 【注意】空间要开 2 倍！(N + N)
 int fa[N]; 
