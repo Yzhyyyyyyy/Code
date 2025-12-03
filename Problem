@@ -10,3 +10,8 @@ tasklist | findstr CLionProjects
 cmd
 taskkill /f /pid 1234
 若有多个结果，重复步骤 4 逐个结束；若提示 “找不到进程”，直接执行下一步。
+
+
+二.加速cin
+ios::sync_with_stdio(false);
+    cin.tie(0);
