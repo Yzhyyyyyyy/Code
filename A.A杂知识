@@ -16,7 +16,6 @@ string s2 = s.substr(start_index, length);
 查找慢：想找个东西得从头翻到尾 $O(N)$。
 什么时候用：90% 的情况都用它。只要存一堆数据，不需要去重，不需要按内容查找，就用 vector。
 
-
 2. Set（集合）
 它不是数组，它是“严谨的管理员”。
 形象比喻：VIP 访客名单。
@@ -44,3 +43,18 @@ set 其实就是一个 只有 Key 没有 Value 的 map。
 什么时候用：
 统计单词出现的次数（Key=单词，Value=次数）。
 需要把字符串映射成数字。
+
+map&set输入输出：
+set一般用insert输入
+s.insert（内容）
+map也可以用insert，还可以直接输入，默认value为0
+m.insert(" , ")
+m[" "]=_
+
+查找都用count
+set返回bool，map返回valude的值
+
+遍历
+for(auto i :s/m)
+如果是map的话，i是一个pair（struct一对）
+用i.first,i.second来访问key和valude
