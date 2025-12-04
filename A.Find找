@@ -1,0 +1,9 @@
+//std::find (全局算法)
+//find(开始迭代器, 结束迭代器, 要找的值)
+
+str.find()
+//返回对应的string下标
+
+//map&set的特殊find
+//（名称）.find更快
+//针对map，只能查找key，不能查找value
