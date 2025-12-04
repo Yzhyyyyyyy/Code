@@ -1,0 +1,33 @@
+// 前置条件：unique 只能去除"相邻"的重复元素
+// 所以使用前通常必须排序：sort(v.begin(), v.end());
+
+// 标准去重用法 (Erase-Remove Idiom)
+//v.表示要排列的vector
+// 1. sort: 让重复元素相邻
+// 2. unique: 将不重复元素移到前面，返回逻辑末尾迭代器
+// 3. erase: 物理删除逻辑末尾之后的废弃数据
+/* 
+   sort(v.begin(), v.end());
+   auto last = unique(v.begin(), v.end());
+//last:unique函数的返回值（是去重之后的后一个元素地址）
+   v.erase(last, v.end()); //注意erase前面需要加v.
+//erase可以删除vector的空间
+//等价于：
+v.erase(unique(b.begin(), b.end()), b.end())
+
+// 统计去重后的元素个数 (常考)
+// int count = unique(v.begin(), v.end()) - v.begin();
+
+
+
+// 离散化标准模板
+vector<int> a; // 原始大坐标
+vector<int> b = a; // 副本
+sort(b.begin(), b.end());
+b.erase(unique(b.begin(), b.end()), b.end()); // 此时 b 是有序且无重复的坐标池
+
+// 查询原始坐标 x 对应的离散化后排名（下标+1）
+// lower_bound 返回的是迭代器，减去 begin() 得到下标
+int get_id(int x) {
+    return lower_bound(b.begin(), b.end(), x) - b.begin() + 1;//一般用1-base坐标
+}
