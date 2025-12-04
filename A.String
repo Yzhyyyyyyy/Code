@@ -1,0 +1,3 @@
+string s2 = s.substr(start_index, length);
+//参数 1 (start_index)：从哪个下标开始切（从 0 开始计数）。
+//参数 2 (length)：可选。要切多长。如果不写这个参数，默认切到字符串末尾。
