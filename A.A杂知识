@@ -4,6 +4,8 @@ string s2 = s.substr(start_index, length);
 
 
 
+
+
 1. Vector（向量/动态数组）
 这就是你理解的“不限制长度的数组”。
 形象比喻：记事本。
@@ -58,3 +60,11 @@ set返回bool，map返回valude的值
 for(auto i :s/m)
 如果是map的话，i是一个pair（struct一对）
 用i.first,i.second来访问key和valude
+
+
+
+
+// cin >> string 会返回流对象，读不到东西时会变 false
+    while (cin >> key[rule_count] >> value[rule_count]) {
+        rule_count++;
+    }
