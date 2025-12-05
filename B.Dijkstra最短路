@@ -1,0 +1,105 @@
+//适用：单源最短路，边权非负
+
+#include <iostream>
+#include <vector>
+#include <queue>
+#include <cstring>
+
+using namespace std;
+
+// 定义无穷大，0x3f3f3f3f 是一个很大的数，且两数相加不会溢出 int
+const int INF = 0x3f3f3f3f; 
+// 如果题目数据很大，距离可能超过 int，请使用 long long 和 0x3f3f3f3f3f3f3f3fLL
+typedef long long ll;
+
+// 边的结构体
+struct Edge {
+    int to;     // 目标点
+    int weight; // 边权
+//如果要问走过的路径是啥：
+  pre[i] = -1; // -1 表示没有前驱
+};
+
+// 邻接表存图
+// MAXN 根据题目要求修改，通常 1e5 或 2e5
+const int MAXN = 100005; 
+vector<Edge> adj[MAXN]; 
+
+// dis[i] 存储起点到 i 的最短距离
+int dis[MAXN]; 
+// vis[i] 标记点 i 是否已经确定了最短路
+bool vis[MAXN]; 
+
+// s: 起点, n: 点的总数
+void dijkstra(int s, int n) {
+    // 1. 初始化
+    // memset(dis, 0x3f, sizeof(dis)); // 慎用 memset 如果是 long long
+    for(int i = 1; i <= n; i++) dis[i] = INF;
+    for(int i = 1; i <= n; i++) vis[i] = false;
+    
+    dis[s] = 0;
+    
+    // 优先队列，存 pair<距离, 点编号>
+    // priority_queue 默认是大根堆，我们需要小根堆（距离最小的在上面）
+    // greater 也就是让它变成从小到大排序
+    priority_queue<pair<int, int>, vector<pair<int, int>>, greater<pair<int, int>>> pq;
+    
+    // 把起点放入队列
+    pq.push({0, s});
+    
+    while (!pq.empty()) {
+        // 取出当前距离起点最近的点
+        int u = pq.top().second;
+        pq.pop();
+        
+        // 如果这个点已经处理过（即已经找到了最短路），跳过
+        if (vis[u]) continue;
+        vis[u] = true; // 标记为已处理
+        
+        // 遍历 u 的所有邻居
+        for (auto& edge : adj[u]) {
+            int v = edge.to;
+            int w = edge.weight;
+            
+            // 松弛操作：如果通过 u 到 v 比直接去 v 更近
+            if (dis[v] > dis[u] + w) {
+                dis[v] = dis[u] + w;
+                pq.push({dis[v], v}); // 将更新后的 v 放入队列
+//如果问从哪里来： pre[v] = u; // 【关键】记录 v 是从 u 走过来的
+            }
+        }
+    }
+}
+
+
+// 打印路径函数（递归法）
+// 调用 print_path(终点) 即可
+void print_path(int t) {
+    if (t == -1) return; // 到了起点的前面，结束
+    print_path(pre[t]);  // 先打印前面的
+    cout << t << " ";    // 再打印自己
+}
+
+
+// 使用示例
+/*
+int main() {
+    int n, m, s; // n点数, m边数, s起点
+    cin >> n >> m >> s;
+    for (int i = 0; i < m; i++) {
+        int u, v, w;
+        cin >> u >> v >> w;
+        adj[u].push_back({v, w});
+        // 如果是无向图，加上下面这句：
+        // adj[v].push_back({u, w});
+    }
+    
+    dijkstra(s, n);
+    
+    // 输出到各点的距离
+    for (int i = 1; i <= n; i++) {
+        cout << dis[i] << " ";
+    }
+    return 0;
+}
+*/
