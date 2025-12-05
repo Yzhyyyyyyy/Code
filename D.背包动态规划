@@ -1,0 +1,38 @@
+定义状态 dp[i][j]：在前 $i$ 个物品中选，背包容量为 $j$ 时的最大价值。
+
+不拿第 $i$ 个：dp[i][j] = dp[i-1][j]
+拿第 $i$ 个：dp[i][j] = dp[i-1][j - w[i]] + v[i] 
+空间优化：一维数组（竞赛通用写法）
+我们发现计算 dp[i] 层时，只需要 dp[i-1] 层的数据。所以可以压缩成一维数组 dp[j]。
+// w[i]: 重量, v[i]: 价值, V: 背包总容量
+vector<int> dp(V + 1, 0);
+
+//数组内的参数表示目前背包剩余的容量
+//数组的值表示总共的价值
+
+//01背包（每个物品取一次）
+for (int i = 0; i < N; i++) {           // 枚举物品
+    for (int j = V; j >= w[i]; j--) {   // 【重点】枚举容量：必须倒序！
+        dp[j] = max(dp[j], dp[j - w[i]] + v[i]);
+    }
+}
+//完全背包（每个物品随便取）
+for (int i = 0; i < N; i++) {
+    for (int j = w[i]; j <= V; j++) {   // 【重点】枚举容量：改成正序！
+        dp[j] = max(dp[j], dp[j - w[i]] + v[i]);
+    }
+}
+//多重背包（每个物品有限个）
+//按2的幂次划分，再进行01背包
+struct Item { int w, v; };
+vector<Item> new_items;
+// 假设第 i 种物品：重量 w, 价值 v, 数量 count
+for (int k = 1; k <= count; k *= 2) {
+    new_items.push_back({k * w, k * v});
+    count -= k;
+}
+if (count > 0) { // 把剩下的打包
+    new_items.push_back({count * w, count * v});
+}
+
+// 然后对 new_items 跑一遍标准的 0/1 背包
