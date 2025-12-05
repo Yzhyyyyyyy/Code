@@ -25,7 +25,7 @@ vector<Edge> adj[MAXN];
 
 // dis[i] 存储起点到 i 的最短距离
 int dis[MAXN]; 
-// vis[i] 标记点 i 是否已经确定了最短路
+// vis[i] 标记点 i 是否已经遍历到了
 bool vis[MAXN]; 
 
 // s: 起点, n: 点的总数
