@@ -16,8 +16,6 @@ typedef long long ll;
 struct Edge {
     int to;     // 目标点
     int weight; // 边权
-//如果要问走过的路径是啥：
-  pre[i] = -1; // -1 表示没有前驱
 };
 
 // 邻接表存图
@@ -36,14 +34,17 @@ void dijkstra(int s, int n) {
     // memset(dis, 0x3f, sizeof(dis)); // 慎用 memset 如果是 long long
     for(int i = 1; i <= n; i++) dis[i] = INF;
     for(int i = 1; i <= n; i++) vis[i] = false;
-    
-    dis[s] = 0;
+//如果要问走过的路径是啥：
+for(int i = 1; i <= n; i++) pre[i] = -1; // -1 表示没有前驱
+   
+dis[s] = 0;
     
     // 优先队列，存 pair<距离, 点编号>
     // priority_queue 默认是大根堆，我们需要小根堆（距离最小的在上面）
     // greater 也就是让它变成从小到大排序
     priority_queue<pair<int, int>, vector<pair<int, int>>, greater<pair<int, int>>> pq;
-    
+//此处使用pair，因此可以不需要重载运算符，只需要greater将大顶堆改成小顶堆就可以了
+
     // 把起点放入队列
     pq.push({0, s});
     
