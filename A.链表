@@ -1,0 +1,127 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include <limits.h>
+
+typedef struct Node {
+    char data;
+    struct Node *next;
+} Node;
+
+// 1. 建表模板：尾插法 (原始直观版)
+Node* createList() {
+    Node *head, *tail;
+    head = (Node *)malloc(sizeof(Node));
+    head->next = NULL; 
+    tail = head; 
+    
+    char c;
+    while ((c = getchar()) != '\n') {
+        // 四步走：开空间 -> 移指针 -> 存数据 -> 封口
+        tail->next = (Node *)malloc(sizeof(Node));
+        tail = tail->next;
+        tail->data = c;
+        tail->next = NULL;
+    }
+    return head;
+}
+
+// 2. 重点：链表转数组 (无冗余)
+char* listToArray(Node* head) {
+    // 第一步：统计有效节点个数
+    int len = 0;
+    Node *p = head->next; // 跳过头结点
+    while (p != NULL) {
+        len++;
+        p = p->next;
+    }
+
+    // 第二步：申请内存
+    // 【关键点】：malloc(len + 1)
+    // 多申请这 1 个字节，是专门留给 '\0' 的
+    char *arr = (char *)malloc((len + 1) * sizeof(char));
+
+    // 第三步：填充数据
+    p = head->next;
+    int i = 0;
+    while (p != NULL) {
+        arr[i] = p->data; // 填数据
+        i++;
+        p = p->next;
+    }
+
+    // 第四步：封口
+    arr[i] = '\0'; // 在最后一位盖章，宣布字符串结束
+
+    return arr;
+}
+
+// 3. 物理修改模板
+void modifyList(Node* head, char key) {
+    Node *p = head->next;
+    Node *prev = head;
+    int found = 0;
+
+    // 删除
+    while (p != NULL) {
+        if (p->data == key) {
+            prev->next = p->next;
+            free(p);
+            found = 1;
+            break;
+        }
+        prev = p;
+        p = p->next;
+    }
+
+    // 插入
+    if (!found) {
+        Node *target = head->next;
+        if (target == NULL) target = head; 
+        else {
+            int minDiff = INT_MAX;
+            p = head->next;
+            while (p != NULL) {
+                int diff = abs(p->data - key);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    target = p;
+                }
+                p = p->next;
+            }
+        }
+        // 插入操作
+        Node *newNode = (Node *)malloc(sizeof(Node));
+        newNode->data = key;
+        newNode->next = target->next;
+        target->next = newNode;
+    }
+}
+
+void printList(Node* head) {
+    Node *p = head->next;
+    while (p != NULL) {
+        printf("%c ", p->data);
+        p = p->next;
+    }
+    printf("\n");
+}
+
+int main() {
+    // 1. 建表
+    Node *list = createList();
+    
+    // 2. 转数组并输出 (题目要求)
+    char *str = listToArray(list);
+    printf("%s\n", str); // 打印字符串
+    free(str); // 用完记得释放数组内存
+    
+    // 3. 修改
+    char key = getchar();
+    modifyList(list, key);
+    
+    // 4. 最终输出
+    printList(list);
+    
+    return 0;
+}
