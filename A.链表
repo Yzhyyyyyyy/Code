@@ -14,7 +14,16 @@ Node* createList() {
     head = (Node *)malloc(sizeof(Node));
     head->next = NULL; 
     tail = head; 
-    
+
+
+//如果已经存在一个链表，要继续补充内容的话：
+//  imf*tail;
+//    tail=head;
+//    while(tail->next != NULL) {//每一次tail都从head开始，走一遍链表到最后去等待添加新元素
+//       tail = tail->next;
+//    }
+
+
     char c;
     while ((c = getchar()) != '\n') {
         // 四步走：开空间 -> 移指针 -> 存数据 -> 封口
