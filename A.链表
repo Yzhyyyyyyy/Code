@@ -12,6 +12,7 @@ typedef struct Node {
 Node* createList() {
     Node *head, *tail;
     head = (Node *)malloc(sizeof(Node));
+//malloc详解：我需要的是空间存放Node，返回的是这个空间的指针，因此前和后是不一样的，注意记得将指针转化为Node*形
     head->next = NULL; 
     tail = head; 
 
