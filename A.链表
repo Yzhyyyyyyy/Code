@@ -134,3 +134,92 @@ int main() {
     
     return 0;
 }
+
+
+
+//要进行排序的话，将指向数组的指针导入数组中，对数组排序后再改变原来链表的指向关系：
+
+//C:
+// 比较函数：注意这里是核心难点
+// 传入的是“指针数组”元素的地址，所以是二级指针 (Node**)
+int cmp(const void *a, const void *b) {
+    Node *nodeA = *(Node**)a; // 解引用一次，拿到节点指针
+    Node *nodeB = *(Node**)b;
+    
+    // 升序：A - B (char 类型直接相减即可)
+    // 如果是 int 分数：return nodeA->score - nodeB->score;
+    // 如果是降序：return nodeB->data - nodeA->data;
+    return nodeA->data - nodeB->data; 
+}
+
+void sortList(Node* head) {
+    // 0. 特判空链表
+    if (head->next == NULL || head->next->next == NULL) return;
+
+    // 1. 统计长度 (为了开辟数组空间)
+    int len = 0;
+    Node *p = head->next;
+    while (p != NULL) {
+        len++;
+        p = p->next;
+    }
+
+    // 2. 创建指针数组 (使用 malloc 动态分配，防止栈溢出)
+    Node **arr = (Node **)malloc(len * sizeof(Node*));
+
+    // 3. 填入数据
+    p = head->next;
+    for (int i = 0; i < len; i++) {
+        arr[i] = p;
+        p = p->next;
+    }
+
+    // 4. 调用 qsort
+    // 参数：数组首地址, 元素个数, 每个元素的大小(即指针的大小), 比较函数
+    qsort(arr, len, sizeof(Node*), cmp);
+
+    // 5. 重组链表 (最爽的一步)
+    Node *tail = head;
+    for (int i = 0; i < len; i++) {
+        tail->next = arr[i]; // 现在的 arr[i] 已经是排好序的节点了
+        tail = tail->next;
+    }
+    tail->next = NULL; // 【重要】别忘了把尾巴封死，否则会死循环
+
+    // 6. 释放辅助数组
+    free(arr);
+}
+
+//C++:
+#include <vector>
+#include <algorithm>
+#include <iostream>
+
+// C++ 版本的比较函数 (不需要指针转换，更直观)
+bool cpp_cmp(Node* a, Node* b) {
+    return a->data < b->data; // 升序
+}
+
+void sortListCpp(Node* head) {
+    if (!head->next) return;
+    
+    std::vector<Node*> v;
+    Node* p = head->next;
+    while(p) {
+        v.push_back(p);
+        p = p->next;
+    }
+
+    // 使用 std::sort
+    std::sort(v.begin(), v.end(), cpp_cmp);
+
+    // 重组
+    Node* tail = head;
+    for(auto node : v) {
+        tail->next = node;
+        tail = tail->next;
+    }
+    tail->next = NULL;
+}
+
+
