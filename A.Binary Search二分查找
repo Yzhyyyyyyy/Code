@@ -27,12 +27,12 @@ int binarySearch(vector<int>& nums, int k) {
     int right = accumulate(nums.begin(), nums.end(), 0); // 上界
     
     while (left < right) {
-        // 取mid = (left + right + 1) / 2 避免死循环
-        int mid = left + (right - left) / 2;
+        // 取mid 要加1 避免死循环
+        int mid = (left + right + 1) / 2;
         
         if (judge(mid, nums, k)) {
             right = mid; // 满足条件，尝试更小的值
-        } else {
+        } else {//此处哪里加一减一要根据所求是最大值还是最小值来灵活判断
             left = mid + 1; // 不满足条件，需要更大的值
         }
     }
