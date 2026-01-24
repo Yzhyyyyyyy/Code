@@ -1,0 +1,367 @@
+// ==================== C++ STL 常用容器笔记 ====================
+
+#include <queue>
+#include <stack>
+#include <vector>
+#include <set>
+#include <map>
+#include <algorithm>
+using namespace std;
+
+// ==================== 1. queue（队列）====================
+// 数据结构：先进先出（FIFO），只能从队尾插入、队首删除
+// 应用场景：BFS、任务调度、层序遍历
+
+// 定义：
+queue<int> q;           // 存储 int 类型
+queue<string> qs;       // 存储 string 类型
+
+// 常用函数：
+q.push(val);            // 队尾入队，O(1)
+q.pop();                // 队首出队，无返回值！O(1)
+q.front();              // 返回队首元素（不删除），O(1)
+q.back();               // 返回队尾元素（不删除），O(1)
+q.empty();              // 判断是否为空，返回 bool，O(1)
+q.size();               // 返回元素个数，O(1)
+
+// 注意：
+// 1. pop() 无返回值，需要先 front() 获取值，再 pop() 删除
+// 2. 访问队首前必须判断 !q.empty()，否则未定义行为
+// 3. queue 不支持遍历，只能通过 pop() 逐个取出
+
+// 示例：BFS 模板
+queue<int> q;
+q.push(start);
+visited[start] = true;
+while (!q.empty()) {
+    int cur = q.front();  // 获取队首
+    q.pop();              // 删除队首
+    // 处理 cur 的邻接节点
+    for (int next : neighbors) {
+        if (!visited[next]) {
+            visited[next] = true;
+            q.push(next);
+        }
+    }
+}
+
+
+// ==================== 2. priority_queue（优先队列）====================
+// 数据结构：堆（Heap），默认大顶堆（每次弹出最大元素）
+// 应用场景：Dijkstra、贪心算法、Top K 问题、带权 BFS
+
+// 定义：
+priority_queue<int> pq;                          // 大顶堆（默认）
+priority_queue<int, vector<int>, greater<int>> pq_min;  // 小顶堆
+
+// 常用函数：
+pq.push(val);           // 插入元素，O(log n)
+pq.pop();               // 删除堆顶元素，无返回值！O(log n)
+pq.top();               // 返回堆顶元素（不删除），O(1)
+pq.empty();             // 判断是否为空，O(1)
+pq.size();              // 返回元素个数，O(1)
+
+// 自定义排序（重载运算符）：
+struct Node {
+    int x, y, cost;
+    // 重载 < 运算符（必须加 const）
+    bool operator < (const Node& b) const {
+        return cost > b.cost;  // 小顶堆：cost 小的优先（注意是 >）
+    }
+};
+priority_queue<Node> pq;  // 自动按 cost 从小到大弹出
+
+// 注意：
+// 1. 默认大顶堆，重载 < 时写 > 得到小顶堆（反直觉！）
+// 2. 重载函数必须加 const，否则编译错误
+// 3. 不支持遍历，只能通过 pop() 逐个取出
+
+// 示例：Dijkstra 最短路
+priority_queue<Node> pq;
+pq.push({start_x, start_y, 0});
+while (!pq.empty()) {
+    Node cur = pq.top();  // 取出花费最小的节点
+    pq.pop();
+    if (visited[cur.x][cur.y]) continue;
+    visited[cur.x][cur.y] = true;
+    // 更新邻接节点
+    for (int i = 0; i < 4; i++) {
+        int nx = cur.x + dx[i];
+        int ny = cur.y + dy[i];
+        pq.push({nx, ny, cur.cost + weight});
+    }
+}
+
+
+// ==================== 3. stack（栈）====================
+// 数据结构：后进先出（LIFO），只能从栈顶插入和删除
+// 应用场景：DFS、括号匹配、表达式求值、单调栈
+
+// 定义：
+stack<int> st;
+
+// 常用函数：
+st.push(val);           // 入栈，O(1)
+st.pop();               // 出栈，无返回值！O(1)
+st.top();               // 返回栈顶元素（不删除），O(1)
+st.empty();             // 判断是否为空，O(1)
+st.size();              // 返回元素个数，O(1)
+
+// 注意：
+// 1. pop() 无返回值，需要先 top() 再 pop()
+// 2. 访问栈顶前必须判断 !st.empty()
+// 3. 不支持遍历
+
+// 示例：DFS 非递归实现
+stack<int> st;
+st.push(start);
+while (!st.empty()) {
+    int cur = st.top();
+    st.pop();
+    if (visited[cur]) continue;
+    visited[cur] = true;
+    // 将邻接节点入栈
+    for (int next : neighbors) {
+        st.push(next);
+    }
+}
+
+
+// ==================== 4. vector（动态数组）====================
+// 数据结构：可变长数组，支持随机访问
+// 应用场景：存储数据、邻接表、动态规划
+
+// 定义：
+vector<int> v;                  // 空数组
+vector<int> v(10);              // 10 个元素，初始化为 0
+vector<int> v(10, 5);           // 10 个元素，初始化为 5
+vector<int> v = {1, 2, 3};      // 初始化列表
+
+// 常用函数：
+v.push_back(val);       // 尾部插入，O(1)
+v.pop_back();           // 删除尾部元素，O(1)
+v[i];                   // 访问第 i 个元素，O(1)
+v.front();              // 返回第一个元素，O(1)
+v.back();               // 返回最后一个元素，O(1)
+v.size();               // 返回元素个数，O(1)
+v.empty();              // 判断是否为空，O(1)
+v.clear();              // 清空所有元素，O(n)
+v.resize(n);            // 调整大小为 n，O(n)
+v.insert(it, val);      // 在迭代器 it 位置插入 val，O(n)
+v.erase(it);            // 删除迭代器 it 位置的元素，O(n)
+
+// 遍历：
+for (int i = 0; i < v.size(); i++) {
+    cout << v[i] << " ";
+}
+for (int x : v) {       // 范围 for（推荐）
+    cout << x << " ";
+}
+
+// 排序：
+sort(v.begin(), v.end());           // 升序
+sort(v.begin(), v.end(), greater<int>());  // 降序
+
+// 注意：
+// 1. 下标访问 v[i] 不检查越界，v.at(i) 会检查（慢）
+// 2. size() 返回 size_t（无符号），与 int 比较时注意类型转换
+
+
+// ==================== 5. set（集合）====================
+// 数据结构：红黑树，自动排序、自动去重
+// 应用场景：判重、维护有序集合、范围查询
+
+// 定义：
+set<int> s;
+
+// 常用函数：
+s.insert(val);          // 插入元素，O(log n)
+s.erase(val);           // 删除元素，O(log n)
+s.find(val);            // 查找元素，返回迭代器，O(log n)
+s.count(val);           // 统计个数（0 或 1），O(log n)
+s.size();               // 返回元素个数，O(1)
+s.empty();              // 判断是否为空，O(1)
+s.clear();              // 清空所有元素，O(n)
+s.begin();              // 返回第一个元素的迭代器，O(1)
+s.end();                // 返回最后一个元素之后的迭代器，O(1)
+s.lower_bound(val);     // 第一个 >= val 的元素，O(log n)
+s.upper_bound(val);     // 第一个 > val 的元素，O(log n)
+
+// 判断元素是否存在：
+if (s.find(val) != s.end()) { /* 存在 */ }
+if (s.count(val)) { /* 存在（更简洁）*/ }
+
+// 遍历（自动排序）：
+for (int x : s) {
+    cout << x << " ";
+}
+
+// 示例：BFS 判重
+set<string> visited;
+if (visited.find(state) == visited.end()) {  // 未访问过
+    visited.insert(state);
+    q.push(state);
+}
+
+// 注意：
+// 1. 自动排序，插入/查找/删除都是 O(log n)
+// 2. 不能通过下标访问，只能通过迭代器
+// 3. 自动去重，重复插入无效
+
+
+// ==================== 6. unordered_set（无序集合）====================
+// 数据结构：哈希表，不排序、自动去重
+// 应用场景：快速判重（比 set 快）
+
+// 定义：
+unordered_set<int> us;
+
+// 常用函数（与 set 相同）：
+us.insert(val);         // 插入，O(1)
+us.erase(val);          // 删除，O(1)
+us.find(val);           // 查找，O(1)
+us.count(val);          // 统计，O(1)
+us.size();              // 大小，O(1)
+us.empty();             // 判空，O(1)
+
+// 示例：快速判重
+unordered_set<string> visited;
+if (visited.find(state) == visited.end()) {
+    visited.insert(state);
+}
+
+// 注意：
+// 1. 比 set 快（O(1) vs O(log n)），但不排序
+// 2. 不支持 lower_bound/upper_bound
+
+
+// ==================== 7. map（映射）====================
+// 数据结构：红黑树，存储键值对，按键排序
+// 应用场景：统计频率、建立映射关系
+
+// 定义：
+map<string, int> m;
+
+// 常用函数：
+m[key] = value;         // 插入/修改，O(log n)
+m.erase(key);           // 删除键，O(log n)
+m.find(key);            // 查找键，返回迭代器，O(log n)
+m.count(key);           // 判断键是否存在（0 或 1），O(log n)
+m.size();               // 返回键值对个数，O(1)
+m.empty();              // 判断是否为空，O(1)
+
+// 遍历（按键排序）：
+for (auto& p : m) {
+    cout << p.first << ": " << p.second << endl;  // first 是键，second 是值
+}
+
+// 示例：统计字符串出现次数
+map<string, int> cnt;
+for (string s : words) {
+    cnt[s]++;  // 自动初始化为 0
+}
+
+// 注意：
+// 1. m[key] 若 key 不存在，会自动创建并初始化为 0
+// 2. 按键排序，操作都是 O(log n)
+
+
+// ==================== 8. unordered_map（无序映射）====================
+// 数据结构：哈希表，存储键值对，不排序
+// 应用场景：快速查找映射关系（比 map 快）
+
+// 定义：
+unordered_map<string, int> um;
+
+// 常用函数（与 map 相同）：
+um[key] = value;        // 插入/修改，O(1)
+um.erase(key);          // 删除，O(1)
+um.find(key);           // 查找，O(1)
+um.count(key);          // 判断存在，O(1)
+
+// 示例：快速统计
+unordered_map<int, int> cnt;
+for (int x : arr) {
+    cnt[x]++;
+}
+
+// 注意：
+// 1. 比 map 快，但不排序
+// 2. 键必须可哈希（int、string 可以，自定义结构体需要写哈希函数）
+
+
+// ==================== 9. pair（键值对）====================
+// 数据结构：存储两个元素的结构体
+// 应用场景：返回多个值、存储坐标、Dijkstra 中存储 (距离, 节点)
+
+// 定义：
+pair<int, int> p;
+pair<int, string> p2 = {1, "hello"};
+pair<int, int> p3 = make_pair(1, 2);
+
+// 访问：
+p.first;                // 第一个元素
+p.second;               // 第二个元素
+
+// 比较：
+// 先比较 first，相同则比较 second
+pair<int, int> a = {1, 2};
+pair<int, int> b = {1, 3};
+if (a < b) { /* a.first == b.first，比较 second，2 < 3 */ }
+
+// 示例：Dijkstra 中存储 (距离, 节点)
+priority_queue<pair<int, int>, vector<pair<int, int>>, greater<pair<int, int>>> pq;
+pq.push({0, start});  // {距离, 节点}
+while (!pq.empty()) {
+    auto [dist, node] = pq.top();  // C++17 结构化绑定
+    pq.pop();
+}
+
+
+// ==================== 10. algorithm（算法库）====================
+// 常用函数：
+
+// 排序：
+sort(v.begin(), v.end());                   // 升序，O(n log n)
+sort(v.begin(), v.end(), greater<int>());   // 降序
+
+// 查找：
+find(v.begin(), v.end(), val);              // 返回迭代器，O(n)
+binary_search(v.begin(), v.end(), val);     // 二分查找（需有序），返回 bool，O(log n)
+lower_bound(v.begin(), v.end(), val);       // 第一个 >= val 的位置，O(log n)
+upper_bound(v.begin(), v.end(), val);       // 第一个 > val 的位置，O(log n)
+
+// 最值：
+max(a, b);                                  // 返回较大值
+min(a, b);                                  // 返回较小值
+*max_element(v.begin(), v.end());           // 返回最大元素，O(n)
+*min_element(v.begin(), v.end());           // 返回最小元素，O(n)
+
+// 反转：
+reverse(v.begin(), v.end());                // 反转数组，O(n)
+
+// 去重（需先排序）：
+sort(v.begin(), v.end());
+v.erase(unique(v.begin(), v.end()), v.end());  // 去重，O(n)
+
+// 填充：
+fill(v.begin(), v.end(), val);              // 填充为 val，O(n)
+
+
+// ==================== 总结对比 ====================
+// 容器           底层结构    有序   去重   时间复杂度      应用场景
+// queue          队列        ×      ×      O(1)           BFS、任务调度
+// priority_queue 堆          ×      ×      O(log n)       Dijkstra、Top K
+// stack          栈          ×      ×      O(1)           DFS、括号匹配
+// vector         动态数组    ×      ×      O(1) 访问      存储数据
+// set            红黑树      √      √      O(log n)       判重、有序集合
+// unordered_set  哈希表      ×      √      O(1)           快速判重
+// map            红黑树      √      √      O(log n)       有序映射
+// unordered_map  哈希表      ×      √      O(1)           快速映射
+
+// 选择建议：
+// 1. 需要排序 → set/map
+// 2. 只需判重 → unordered_set
+// 3. 需要最值 → priority_queue
+// 4. 需要顺序处理 → queue（BFS）、stack（DFS）
+// 5. 需要随机访问 → vector
