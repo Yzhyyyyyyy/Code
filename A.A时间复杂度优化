@@ -1,0 +1,50 @@
+1.按照数组重载大小后更新数组
+// 时间复杂度 O(n^2) -> 10万数据必超时
+for (int i = 0; i < n; i++) {
+    for (int j = 0; j < n; j++) {
+        if (b[j] == a[i]) c[j] = i; 
+    }
+}
+// 时间复杂度 O(n) -> 极快
+// 1. 预处理：记录 A 中每个值的位置
+for (int i = 0; i < n; i++) pos[a[i]] = i; 
+
+// 2. 转换：直接把 B 的值换成位置
+for (int i = 0; i < n; i++) c[i] = pos[b[i]]; 
+
+
+
+2.最长上升子序列
+//  传统 DP 写法
+// 时间复杂度 O(n^2) -> 10万数据必超时
+// 瓶颈：每次都要“回头看”，遍历前面所有节点来找最大值
+vector<int> dp(n, 1);
+for (int i = 0; i < n; i++) {
+    for (int j = 0; j < i; j++) {
+        // 如果能接上，就尝试更新长度
+        if (nums[i] > nums[j]) {
+            dp[i] = max(dp[i], dp[j] + 1);
+        }
+    }
+}
+
+
+//  贪心 + 二分查找 (Patience Sorting)
+// 时间复杂度 O(n log n) -> 极快，可处理百万级数据
+// 核心：tails[i] 存储长度为 i+1 的序列中“最小的结尾值”
+vector<int> tails;
+for (int v : nums) {
+    // 1. 二分查找：找到第一个 >= v 的位置 (即“挡路”的那个数)
+    auto it = lower_bound(tails.begin(), tails.end(), v);
+    
+    if (it == tails.end()) {
+        // 2. 没找到：说明 v 比所有结尾都大 -> 只有它能让序列变长
+        tails.push_back(v);
+    } else {
+        // 3. 找到了：说明 v 更小更强 -> 踢掉旧数，换上 v (降低门槛，为未来铺路)
+        *it = v; 
+    }
+}
+// tails.size() 即为 LIS 长度
+
+
