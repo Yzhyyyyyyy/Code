@@ -74,9 +74,87 @@ int start = 0;
     }
 
 
+
 //主附件背包（选择A的前提是必须选择B）
 //将主件A和附件的所有组合的可能情况全部枚举出来生成新的可能情况，再对所有情况跑01背包
+//可以使用二进制手段，从1到（1<<（end-start）），用for循环遍历，看>>j之后&1是为1还是为0,
+//以此来决定是不是将其加入price_now和value_now之中
+//这样就可以达到，遍历所有的附件取或者不取的所有情况了
+//前面要先进行排序：
+struct Item {
+    int id;     // 物品原本的编号
+    int price;  // 价格
+    int value;  // 价格 * 重要度
+    int q;      // 主件编号 (0表示自己是主件)
+    int family; // 用来排序的组号
+};
+// 排序规则：把同一组的放一起，且主件排在最前面
+bool cmp(Item a, Item b) {
+    if (a.family != b.family) {
+        return a.family < b.family; // 按组号排序
+    }
+    // 如果组号相同（是同一家子），主件(q=0)排在前面
+    return a.q < b.q;
+}
+   // 确定组号：如果是主件，组号就是自己；如果是附件，组号是它大哥的编号
+        if (num[i].q == 0) num[i].family = i;
+        else num[i].family = num[i].q;
+    }
+ // 【关键步骤】排序！
+    // 排序后，数组变成了：[主件A, 附件A1, 附件A2, 主件B, 附件B1, ...]
+    sort(num.begin() + 1, num.end(), cmp);
 
+int start = 1;
+    while (start <= n) {
+        // 此时 num[start] 一定是主件
+        int end = start + 1;
+        
+        // 寻找当前主件的所有附件 (因为排过序，它们一定紧跟在后面)
+        // 注意：这里判断 family 是否相同即可
+        while (end <= n && num[end].family == num[start].family)
+            end++;
+            
+        // 这一组里的附件数量
+        // start是主件，start+1 到 end-1 是附件
+        int accessories_cnt = end - start - 1; 
+        
+        // --- 预处理：生成这一组所有可能的购买方案 (价格, 价值) ---
+        // 这一步是为了防止在DP循环里重复购买
+        vector<pair<int, int>> combos;
+        
+        // 二进制枚举附件的所有组合
+        for (int i = 0; i < (1 << accessories_cnt); i++) {
+            int price_now = num[start].price; // 必选主件
+            int value_now = num[start].value;
+            
+            for (int j = 0; j < accessories_cnt; j++) {
+                if ((i >> j) & 1) { // 如果二进制第j位是1，代表选第j个附件
+                    price_now += num[start + 1 + j].price;
+                    value_now += num[start + 1 + j].value;
+                }
+            }
+            
+            if (price_now <= max_price) {
+                combos.push_back({price_now, value_now});
+            }
+        }
+
+        // --- 分组背包 DP ---
+        // 1. 先遍历容量 (倒序)
+        for (int j = max_price; j >= 0; j--) {
+            // 2. 再遍历这一组所有的组合方案
+            for (auto &combo : combos) {
+                int cost = combo.first;
+                int val = combo.second;
+                if (j >= cost) {
+                    dp[j] = max(dp[j], dp[j - cost] + val);
+                }
+            }
+        }
+
+        // 移动 start 指针到下一组
+        start = end;
+    }
 
 
 
