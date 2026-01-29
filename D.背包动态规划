@@ -43,6 +43,36 @@ if (count > 0) { // 把剩下的打包
 // 然后对 new_items 跑一遍标准的 0/1 背包
 
 
+//分组背包（物品存在归属，组内物品不可以重复选取）
+vector<int> dp(V + 1, 0); //使用一维动态规划数组
+// dp[j]：背包容量为j时，能获得的最大价值
+// 定义二维数组group[组数][组内元素数]=元素信息
+vector<vector<pair<int, int>>> group(max_g + 1); 
+// group[g]：存储第g组的所有物品，每个元素是(重量, 价值)
+// 组号一般从1开始，max_g是题目中最大的组号
+//遍历每个组 → 倒序遍历背包容量（从V到0） → 遍历组内的每个物品
+//或者可以在成串的数据中直接分隔开不同的组，再对不同的组进行01背包
+int start = 0;
+    while (start < n) {
+        // 找到当前组的结束下标end：同组号的最后一个物品的下一个位置
+        int end = start;
+        while (end < n && num[end].group == num[start].group) {
+            end++;
+        }
+        // 分组背包核心：倒序遍历容量（防止组内重复选）→ 遍历组内物品更新DP
+        for (int j = max_weight; j >= 0; j--) { // 倒序遍历背包容量
+            for (int k = start; k < end; k++) { // 遍历当前组的所有物品
+                // 容量足够时，执行01背包式状态转移
+                if (j >= num[k].weight) {
+                    dp[j] = max(dp[j], dp[j - num[k].weight] + num[k].value);
+//涵盖了所有物品都不取的情况，每次都取dp[j]
+                }
+            }
+        }
+        start = end; // 移到下一组的起始位置，继续处理
+    }
+
+
 
 //不只有最值背包，还可以有可行性背包，定义为bool dp，状态转移方程把最大值换成||
   dp[j]==dp[i]||dp[i-arr[i]];
