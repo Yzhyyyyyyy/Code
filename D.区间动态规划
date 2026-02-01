@@ -1,0 +1,65 @@
+// ==================== 1. 核心定义与思想 ====================
+// 区间 DP：状态以「区间 [l, r]」为维度，从短区间推导长区间的最优解
+// 核心状态：dp [l][r] = 区间 [l, r]（左端点 l，右端点 r）的最优解（最小 / 最大代价、方案数等）
+// 核心逻辑：大区间最优解 = 子区间 [l,k] + [k+1,r] 的最优解 + 区间 [l,r] 的代价（k 为分割点）
+
+// ==================== 2. 基础版（O (n³)）====================
+// 核心：三层循环，枚举所有分割点
+long long intervalDPBasic (vector<int>& arr) {int n = arr.size();
+vector<vector<long long>> dp(n, vector<long long>(n, 0));
+vector<long long> prefix (n+1, 0);
+// 前缀和（计算区间代价用）
+for (int i=0; i<n; i++) 
+prefix [i+1] = prefix [i] + arr [i];
+// 1. 初始化：长度 1 的区间无代价
+for (int l=0; l<n; l++) 
+dp [l][l] = 0;
+// 2. 枚举区间长度（核心顺序：从短到长）
+for (int len=2; len<=n; len++) {
+for (int l=0; l+len-1 <n; l++) { 
+// 枚举左端点
+int r = l + len -1;
+dp [l][r] = LLONG_MAX; 
+// 求最小代价初始化
+// 3. 枚举所有分割点（O (n) 枚举，总复杂度 O (n³)）
+for (int k=l; k<r; k++) {
+long long cost = prefix [r+1] - prefix [l]; 
+// 区间 [l,r] 的代价
+dp [l][r] = min (dp [l][r], dp [l][k] + dp [k+1][r] + cost);}}}
+return dp [0][n-1];}
+// ==================== 3. 优化版（O (n²)）====================
+// 优化前提：代价函数满足「四边形不等式」+ 状态满足「决策单调性」
+// 核心：用 k [l][r] 记录区间 [l,r] 的最优分割点，缩小枚举范围
+long long intervalDPOptimized (vector<int>& arr) {
+int n = arr.size();
+vector<vector<long long>> dp(n, vector<long long>(n, 0));
+vector<vector<int>> k(n, vector<int>(n, 0)); 
+// 记录最优分割点
+vector<long long> prefix(n+1, 0);
+for (int i=0; i<n; i++) 
+prefix[i+1] = prefix[i] + arr[i];
+// 初始化：长度 1 的区间最优分割点为自身
+for (int l=0; l<n; l++) {
+dp [l][l] = 0;
+k [l][l] = l;}
+for (int len=2; len<=n; len++) {
+for (int l=0; l+len-1 <n; l++) {
+int r = l + len -1;
+dp[l][r] = LLONG_MAX;
+// 优化关键：仅枚举 [k [l][r-1], k [l+1][r]]（O (1) 枚举，总复杂度 O (n²)）
+int start = k [l][r-1], end = k [l+1][r];
+for (int split=start; split<=end; split++) {
+long long cost = prefix [r+1] - prefix [l];
+if (dp [l][split] + dp [split+1][r] + cost < dp [l][r]) {
+dp [l][r] = dp [l][split] + dp [split+1][r] + cost;
+k [l][r] = split; 
+// 更新最优分割点
+}}}}
+return dp [0][n-1];}
+// ==================== 核心总结 ====================
+// 1. DP 核心含义：dp [l][r] 代表区间 [l,r] 的最优解，依赖子区间推导
+// 2. 复杂度对比：
+// - 基础版：O (n³) → 枚举所有分割点，无优化条件时使用
+// - 优化版：O (n²) → 利用「决策单调性」缩小分割点范围，仅适用于满足四边形不等式的问题
+// 3. 关键注意：循环顺序必须「先枚举区间长度」，确保子问题先求解
+
