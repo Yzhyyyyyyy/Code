@@ -31,6 +31,7 @@ return dp [0][n-1];}
 
 
 // ==================== 3. 优化版（O (n²)）====================
+//注意，只有最小代价可以使用这种方法优化，最大代价还是需要直接三重for循环
 // 优化前提：代价函数满足「四边形不等式」+ 状态满足「决策单调性」
 // 核心：用 k [l][r] 记录区间 [l,r] 的最优分割点，缩小枚举范围
 long long intervalDPOptimized (vector<int>& arr) {
@@ -43,7 +44,7 @@ for (int i=0; i<n; i++)
 prefix[i+1] = prefix[i] + arr[i];
 // 初始化：长度 1 的区间最优分割点为自身
 for (int l=0; l<n; l++) {
-dp [l][l] = 0;  //注意此时要优化两个算法
+dp [l][l] = 0;  //注意此时要优化两个数组
 k [l][l] = l;}
 for (int len=2; len<=n; len++) {
 for (int l=0; l+len-1 <n; l++) {
@@ -56,7 +57,7 @@ long long cost = prefix [r+1] - prefix [l];
 if (dp [l][split] + dp [split+1][r] + cost < dp [l][r]) {
 dp [l][r] = dp [l][split] + dp [split+1][r] + cost;
 k [l][r] = split; 
-// 更新最优分割点
+// TIP：注意更新最优分割点
 }}}}
 return dp [0][n-1];}
 
