@@ -23,7 +23,7 @@ int r = l + len -1;
 dp [l][r] = LLONG_MAX; 
 // 求最小代价初始化
 // 3. 枚举所有分割点（O (n) 枚举，总复杂度 O (n³)）
-for (int k=l; k<r; k++) {
+for (int k=l; k<r; k++) {//注意此处取值，k可以等于left，因为right边区间开始的地方在k+1位置
 long long cost = prefix [r+1] - prefix [l]; 
 // 区间 [l,r] 的代价
 dp [l][r] = min (dp [l][r], dp [l][k] + dp [k+1][r] + cost);}}}
