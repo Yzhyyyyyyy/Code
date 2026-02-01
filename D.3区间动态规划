@@ -43,7 +43,7 @@ for (int i=0; i<n; i++)
 prefix[i+1] = prefix[i] + arr[i];
 // 初始化：长度 1 的区间最优分割点为自身
 for (int l=0; l<n; l++) {
-dp [l][l] = 0;
+dp [l][l] = 0;  //注意此时要优化两个算法
 k [l][l] = l;}
 for (int len=2; len<=n; len++) {
 for (int l=0; l+len-1 <n; l++) {
