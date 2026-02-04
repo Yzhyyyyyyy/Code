@@ -1,1 +1,168 @@
+// ==================== 1. 核心定义与思想 ====================
+// 树状 DP：状态以「子树」为维度，从叶子节点推导根节点的最优解
+// 核心状态：dp[u][state] = 以 u 为根的子树，在状态 state 下的最优解
+// 核心逻辑：父节点 u 的状态 = 综合所有子节点 v 的状态 + 节点 u 自身的权值
+// 遍历方式：DFS 后序遍历（先递归子节点，回溯时更新父节点）
+
+
+// ==================== 2. 基础模型：最大权独立集 ====================
+// 经典例题：没有上司的舞会
+// 状态定义：
+// dp[u][0] = u 不选，子树最大权值
+// dp[u][1] = u 选，子树最大权值
+// 转移方程：
+// dp[u][0] += max(dp[v][0], dp[v][1])  (u不选，v可选可不选)
+// dp[u][1] += dp[v][0]                 (u选，v一定不能选)
+
+#include <vector>
+#include <algorithm>
+#include <iostream>
+using namespace std;
+
+const int MAXN = 6005;
+vector<int> adj[MAXN]; // 邻接表
+int happy[MAXN];       // 点权
+int dp[MAXN][2];       // DP数组
+
+void treeDP_Basic(int u, int fa) { // u:当前点, fa:父节点(防止倒流)
+    // 1. 初始化（Base Case）
+    dp[u][0] = 0;
+    dp[u][1] = happy[u];
+
+    // 2. 遍历子节点
+    for (int v : adj[u]) {
+        if (v == fa) continue; // 关键：跳过父节点
+
+        treeDP_Basic(v, u); // 【递】先去算子节点
+
+        // 3. 状态转移（回溯）
+        dp[u][1] += dp[v][0];
+        dp[u][0] += max(dp[v][0], dp[v][1]);
+    }
+}
+// 复杂度：O(N)，每个节点只访问一次
+
+
+// ==================== 3. 进阶模型：树上背包 (Tree Knapsack) ====================
+// 经典例题：选课 / 有依赖的背包问题
+// 题目：在树上选 M 个节点，每个节点有体积 w 和价值 v，选子节点必须选父节点。
+// 状态定义：dp[u][j] = 以 u 为根的子树中，选 j 个节点的最大价值
+// 核心逻辑：分组背包思想。每个子树看作一组物品，分配体积给各个子树。
+
+int sz[MAXN]; // 记录子树大小优化常数
+int dp_bag[MAXN][105]; // M通常较小
+int weight[MAXN], value[MAXN];
+int M; // 最大容量
+
+void treeDP_Knapsack(int u, int fa) {
+    // 1. 初始化
+    sz[u] = 1;
+    dp_bag[u][1] = value[u]; // 选自己，体积为1(或其他weight[u])
+    // 注意：dp[u][0] = 0，其他初始化为 -INF
+
+    // 2. 遍历子节点（分组背包的组）
+    for (int v : adj[u]) {
+        if (v == fa) continue;
+        
+        treeDP_Knapsack(v, u); // 递归求解子树
+
+        // 3. 合并子树（分组背包的决策）
+        // 倒序枚举体积，防重复选取（类似01背包）
+        // j 从 min(M, sz[u] + sz[v]) 开始枚举到 2 (至少选u自己)
+        for (int j = min(M, sz[u] + sz[v]); j >= 2; j--) {
+            // 枚举分给子树 v 的体积 k
+            // k 不能超过子树 v 的大小，也不能超过 j-1 (留1给u自己)
+            for (int k = 1; k <= sz[v] && k < j; k++) {
+                dp_bag[u][j] = max(dp_bag[u][j], dp_bag[u][j - k] + dp_bag[v][k]);
+            }
+        }
+        sz[u] += sz[v]; // 更新当前子树大小
+    }
+}
+// 复杂度：看似 O(N*M^2)，实际上下界优化后均摊为 O(N*M)
+
+
+// ==================== 4. 进阶模型：树的直径 ====================
+// 定义：树上最远两点的距离
+// 做法：对于每个点 u，求出向下延伸的最长链 d1 和次长链 d2
+// 结果：max(d1 + d2) 即为经过 u 的最长路径
+
+int max_len = 0;
+int dist[MAXN]; // dist[u] 表示 u 向下延伸的最长距离
+
+void treeDP_Diameter(int u, int fa) {
+    dist[u] = 0; // 初始化，叶子节点向下距离为0
+    
+    for (int v : adj[u]) {
+        if (v == fa) continue;
+        
+        treeDP_Diameter(v, u);
+        
+        // 在更新 dist[u] 之前，先计算经过 u 的路径
+        // dist[u] 目前存的是 u 之前遍历过的子树中的最长链
+        // dist[v] + 1 是当前子树 v 的最长链
+        max_len = max(max_len, dist[u] + dist[v] + 1); 
+        
+        // 更新 u 向下的最长链
+        dist[u] = max(dist[u], dist[v] + 1);
+    }
+}
+
+
+// ==================== 5. 换根 DP (Re-rooting DP) ====================
+// 场景：需要求出「以每个节点为根」时的答案，暴力做是 O(N^2)，换根可优化至 O(N)
+// 步骤：
+// 1. 第一次 DFS：固定 1 为根，算出所有子树贡献 (dp[u])
+// 2. 第二次 DFS：自顶向下，算出父节点对子节点的贡献 (up[u])，合并得到最终解
+// 核心思想：u 的全集 = (u 的子树贡献) + (u 的父节点方向贡献)
+
+// 示例：求每个点到其他所有点的距离之和
+long long sum_dist[MAXN]; // 第一次DFS求子树内的距离和
+long long ans[MAXN];      // 最终答案
+int sz_root[MAXN];        // 子树大小
+
+// 第一次 DFS：求子树信息
+void dfs1(int u, int fa) {
+    sz_root[u] = 1;
+    sum_dist[u] = 0;
+    for (int v : adj[u]) {
+        if (v == fa) continue;
+        dfs1(v, u);
+        sz_root[u] += sz_root[v];
+        sum_dist[u] += sum_dist[v] + sz_root[v]; // v到子树节点的距离 + v到u的这一步(每人走一步)
+    }
+}
+
+// 第二次 DFS：换根转移
+// 当根从 u 换到 v 时：
+// 1. v 的子树节点距离减少：减少了 sz[v] 个节点，每个少走 1 步
+// 2. u 的非 v 子树节点距离增加：增加了 (N - sz[v]) 个节点，每个多走 1 步
+void dfs2(int u, int fa, int n) {
+    ans[u] = sum_dist[u]; // 记录答案
+    
+    for (int v : adj[u]) {
+        if (v == fa) continue;
+        
+        // 记录旧值以便回溯（或者直接利用公式推导新的sum_dist）
+        long long old_u = sum_dist[u];
+        long long old_v = sum_dist[v];
+        int old_sz_u = sz_root[u];
+        int old_sz_v = sz_root[v];
+        
+        // 换根公式（简易版，实际写时通常维护 up 数组）
+        // sum_dist[v] = sum_dist[u] - sz[v] + (n - sz[v]);
+        
+        // 这里仅展示逻辑结构，具体题目需推导公式
+        dfs2(v, u, n);
+    }
+}
+
+
+// ==================== 核心总结 ====================
+// 1. 核心动作：DFS。进栈是「向下搜索」，出栈是「向上汇总」。
+// 2. 状态设计：必须包含「子树」的概念，如 dp[u] 代表 u 子树的某种最优值。
+// 3. 常见陷阱：
+//    - 无向图建树：必须加 if (v == fa) continue 防止死循环。
+//    - 边界条件：叶子节点的初始化。
+//    - 树上背包：注意循环边界优化，否则会退化成 O(N^2)。
 
