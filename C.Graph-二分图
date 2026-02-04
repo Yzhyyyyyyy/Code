@@ -1,6 +1,7 @@
 #include <iostream>
 //邻接图adj：
 // 假设之前定义了： vector<int> adj[10005];
+//vector<int>是一个数据类型，表示边长数组这个类型
 // 这代表 adj 是一个数组，数组里的每一个元素都是一个 vector（变长列表）
 //双向构建，无边图（无加权，仅仅表示连接）
 adj[u].push_back(v); 
