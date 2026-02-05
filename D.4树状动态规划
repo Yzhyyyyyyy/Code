@@ -98,7 +98,8 @@ using namespace std;
 const int MAXN = 305;
 vector<int> adj[MAXN];  // 邻接表存图
 int val[MAXN];          // 节点的价值
-int sz[MAXN];           // 子树大小（优化用）
+int sz[MAXN];           // 子树大小（优化用），当前位置为主干的树的节点总和
+//sz[u] 其实是一个动态增长的过程，每次循环经过u的子节点v都会sz[u]+=sz[v]
 int dp[MAXN][MAXN];     // dp[u][j]: 以u为根选j个节点的最大价值
 int n, m;               // n个节点，选m个
 
