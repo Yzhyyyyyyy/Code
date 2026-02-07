@@ -249,51 +249,78 @@ int main() {
 
 // ==================== 5. 换根 DP (Re-rooting DP) ====================
 // 场景：需要求出「以每个节点为根」时的答案，暴力做是 O(N^2)，换根可优化至 O(N)
-// 步骤：
-// 1. 第一次 DFS：固定 1 为根，算出所有子树贡献 (dp[u])
-// 2. 第二次 DFS：自顶向下，算出父节点对子节点的贡献 (up[u])，合并得到最终解
 // 核心思想：u 的全集 = (u 的子树贡献) + (u 的父节点方向贡献)
+// 步骤：
+// 1. 第一次 DFS (Bottom-up)：固定 1 为根，算出所有子树贡献 (dp[u])
+// 2. 第二次 DFS (Top-down)：自顶向下，将父节点的全集信息“喂”给子节点，合并得到最终解
 
-// 示例：求每个点到其他所有点的距离之和
-long long sum_dist[MAXN]; // 第一次DFS求子树内的距离和
-long long ans_reroot[MAXN];      // 最终答案
-int sz_root[MAXN];        // 子树大小
+// ---------------- 基础案例：求每个点到其他所有点的距离之和 (一维状态) ----------------
+long long sum_dist[MAXN]; // dp[u]: 子树内的距离和
+long long ans_reroot[MAXN];
+int sz_root[MAXN];
 
-// 第一次 DFS：求子树信息
-void dfs1(int u, int fa) {
-    sz_root[u] = 1;
-    sum_dist[u] = 0;
+void dfs1(int u, int fa) { // 第一次 DFS：求子树信息
+    sz_root[u] = 1; sum_dist[u] = 0;
     for (int v : adj[u]) {
         if (v == fa) continue;
         dfs1(v, u);
         sz_root[u] += sz_root[v];
-        sum_dist[u] += sum_dist[v] + sz_root[v]; // v到子树节点的距离 + v到u的这一步(每人走一步)
+        sum_dist[u] += sum_dist[v] + sz_root[v]; 
     }
 }
 
-// 第二次 DFS：换根转移
-// 当根从 u 换到 v 时：
-// 1. v 的子树节点距离减少：减少了 sz[v] 个节点，每个少走 1 步
-// 2. u 的非 v 子树节点距离增加：增加了 (N - sz[v]) 个节点，每个多走 1 步
-void dfs2(int u, int fa, int n) {
-    ans_reroot[u] = sum_dist[u]; // 记录答案
-    
+void dfs2(int u, int fa, int n) { // 第二次 DFS：换根转移
+    ans_reroot[u] = sum_dist[u];
     for (int v : adj[u]) {
         if (v == fa) continue;
+        // 换根公式：sum_dist[v] = sum_dist[u] - sz[v] + (n - sz[v]);
+        // 逻辑：v 子树节点距离 -1，非 v 子树节点距离 +1
+        // 注意：实际写码时，通常直接修改 sum_dist[v] 传下去，回溯时改回来；或者维护单独的 up 数组
+        long long old_u = sum_dist[u], old_v = sum_dist[v]; // 备份
+        int old_sz_u = sz_root[u], old_sz_v = sz_root[v];
         
-        // 记录旧值以便回溯（或者直接利用公式推导新的sum_dist）
-        long long old_u = sum_dist[u];
-        long long old_v = sum_dist[v];
-        int old_sz_u = sz_root[u];
-        int old_sz_v = sz_root[v];
+        sum_dist[v] = sum_dist[u] - sz_root[v] + (n - sz_root[v]); // 转移
+        sz_root[v] = n; // 换根后 v 变成了全树的根
         
-        // 换根公式（简易版，实际写时通常维护 up 数组）
-        // sum_dist[v] = sum_dist[u] - sz[v] + (n - sz[v]);
-        
-        // 这里仅展示逻辑结构，具体题目需推导公式
         dfs2(v, u, n);
+        
+        sum_dist[u] = old_u; sum_dist[v] = old_v; // 回溯复原
+        sz_root[u] = old_sz_u; sz_root[v] = old_sz_v;
     }
 }
+
+// ---------------- 进阶案例：Nearby Cows (二维状态 + 去重逻辑) ----------------
+// 场景：求距离 u 节点 K 步以内的节点数量。状态 dp[u][k]
+// 难点：当把父节点 u 的信息推给子节点 v 时，必须扣除 v 原本贡献给 u 的那部分（防止回流）
+
+// 关键公式：
+// dp[v][j] += dp[u][j-1];  // 1. 拿来主义：爸爸 u 在 j-1 处的牛，对 v 来说就是距离 j
+// dp[v][j] -= dp[v][j-2];  // 2. 拒绝回流：减去 v 之前贡献给 u 的那部分
+// 解释：u 的数据里包含了 v 的子树数据（v -> u 距离为 1）。
+//      这些数据在 u 看来是距离 j-1，但在 v 看来其实是距离 (j-1)-1 = j-2。
+//      这部分是 v 自己的子树，不能算作“来自父节点方向”的贡献，必须剔除。
+
+// 为什么不能用滚动数组优化空间？(必须开 dp[N][K])
+// 1. 一父多子（共享源）：父节点 u 的数据是所有子节点 v1, v2... 共享的。
+//    更新 v1 时不能覆盖 u 的数据，因为 v2 还要用 u 的原始数据。
+// 2. 需要“翻旧账”（数据持久化）：
+//    公式中的 `dp[v][j-2]` 指的是 v 在 DFS1 阶段算出的子树数据。
+//    如果在 DFS2 过程中把 N 维滚掉了，等到访问 v 时，这笔“旧账”早就丢失了，无法进行去重减法。
+
+void dfs2_advanced(int u, int fa, int K) {
+    for (int v : adj[u]) {
+        if (v == fa) continue;
+        // 必须倒序循环！防止 dp[v][j-2] 在本轮被更新覆盖，保证读到的是 DFS1 的原始值
+        for (int j = K; j >= 1; j--) {
+             // 拿父节点全集 - (v原本贡献给父节点的部分)
+             long long val_from_parent = dp[u][j-1];
+             long long val_from_self_old = (j >= 2 ? dp[v][j-2] : 0);
+             dp[v][j] += (val_from_parent - val_from_self_old);
+        }
+        dfs2_advanced(v, u, K);
+    }
+}
+
 
 
 // ==================== 核心总结 ====================
