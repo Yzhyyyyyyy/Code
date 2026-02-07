@@ -84,47 +84,122 @@ int main() {
 }
 */
 
+// ==================== 3. 特殊输入处理：递归建树 (Implicit Tree) ====================
+// 场景：输入不是 u v 连边，而是一个字符串（如 "2100"）或连续的数值流。
+// 特点：输入本身就是树的「前序遍历」或「波兰表达式」。
+// 核心思想：不需要显式建图（adj数组），利用递归函数的调用栈自动模拟树结构。
+// 关键技巧：全局指针 pos，随递归自动后移，天然划分左右子树边界。
+
+/*
+输入样例：21200110
+含义：
+2 -> 根节点有两个儿子
+  1 -> 左儿子有一个儿子
+    2 -> 左儿子的儿子有两个儿子
+      0 -> 叶子
+      0 -> 叶子
+  1 -> 右儿子有一个儿子
+    1 -> 右儿子的儿子有一个儿子
+      0 -> 叶子
+*/
+
+#include <string>
+using namespace std;
+
+string s;
+int pos = 0; // 【关键】全局指针，记录当前读到字符串的哪个位置
+
+// 定义返回值结构体（根据题目要求定制）
+struct Result {
+    int max_green;
+    int min_green;
+    // 可能还需要记录根节点颜色状态等
+    // int max_val[3]; // 0:绿, 1:红, 2:蓝
+};
+
+Result dfs_implicit() {
+    // 1. 读取当前节点信息
+    char type = s[pos++]; // 读完立即后移，指向下一个待处理字符
+    
+    Result res;
+    // 初始化当前节点的基础值
+    
+    if (type == '0') {
+        // 【基准情况】叶子节点
+        // 直接计算并返回，不再递归
+        // res.max_green = 1; ...
+        return res;
+    } 
+    else if (type == '1') {
+        // 【递归】有一个子节点
+        // 这里的 dfs_implicit() 会自动“吃掉”属于它的整棵子树
+        // 无论子树多大，返回时 pos 一定停在正确的位置
+        Result child = dfs_implicit(); 
+        
+        // 【状态转移】结合子树结果更新当前 res
+        // res.max_green = ...
+    } 
+    else if (type == '2') {
+        // 【递归】有两个子节点
+        // 顺序很重要：先调用的吃掉左子树，后调用的吃掉右子树
+        Result left_child = dfs_implicit();
+        Result right_child = dfs_implicit();
+        
+        // 【状态转移】结合左右子树结果更新当前 res
+        // res.max_green = ...
+    }
+    
+    return res;
+}
+
+/*
+int main() {
+    cin >> s;
+    pos = 0;
+    Result root_ans = dfs_implicit();
+    cout << root_ans.max_green << endl;
+}
+*/
 
 
-// ==================== 3. 进阶模型：树上背包 (Tree Knapsack) ====================
+// ==================== 4. 进阶模型：树上背包 (Tree Knapsack) ====================
 // 经典例题：选课 (Luogu P2014)
 // 变量说明：
 // from : 当前递归到的节点（父节点/树根）
 // tem  : from 的子节点（当前正在处理的分组/物品）
 // to   : 输入时用来表示先修课（父节点）的变量
 
-#include <bits/stdc++.h>
-using namespace std;
+#include <cstring>
 
-const int MAXN = 310;
-vector<int> boss[MAXN]; // 邻接表存图，boss[from] 里存的是 from 的所有下级(tem)
-int value[MAXN];        // 节点的学分/价值
-int sz[MAXN];           // 子树大小（优化用），当前以 from 为根的子树节点总数
-int dp[MAXN][MAXN];     // dp[from][j]: 以 from 为根，选 j 个节点的最大价值
-int n, m;               // n个节点，选m个
+const int MAXN_K = 310;
+vector<int> boss[MAXN_K]; // 邻接表存图，boss[from] 里存的是 from 的所有下级(tem)
+int value[MAXN_K];        // 节点的学分/价值
+int sz[MAXN_K];           // 子树大小（优化用），当前以 from 为根的子树节点总数
+int dp_k[MAXN_K][MAXN_K]; // dp[from][j]: 以 from 为根，选 j 个节点的最大价值
+int n_k, m_k;             // n个节点，选m个
 
 // 树形DP核心函数
 // 关键点：辨析三个循环的含义：
 // 1. 最外层遍历 boss[from]：枚举当前节点(from)的所有子节点(tem)，相当于分组背包里的“组”。
 // 2. 中间层倒序枚举 j：枚举当前 from 子树（包含已经处理完的子节点 + 正在处理的 tem）总共选多少个课。
 // 3. 最内层枚举 k：决策给当前子节点(tem)分配多少个名额。
-void dfs(int from) {
+void dfs_knapsack(int from) {
     // 1. 初始化
     // dp[from][1] 表示只选自己（体积为1），价值为自己的学分
     // 这里的 1 代表 from 节点本身必选
-    dp[from][1] = value[from];
+    dp_k[from][1] = value[from];
     sz[from] = 1; 
 
     // 2. 遍历子节点（相当于分组背包中的“组”）
     for (int tem : boss[from]) {
         
-        dfs(tem); // 递归，先把子树 tem 里的最优解算好
+        dfs_knapsack(tem); // 递归，先把子树 tem 里的最优解算好
 
         // 3. 合并子树（相当于分组背包的决策）
         // 倒序枚举当前背包容量 j
         // 上界：min(m + 1, sz[from] + sz[tem]) -> 剪枝优化，防止无意义循环
         // 下界：2 -> 至少要选 from 自己(1) + 子树 tem 里选1个(1)，否则没必要进入循环
-        for (int j = min(m + 1, sz[from] + sz[tem]); j >= 2; j--) {
+        for (int j = min(m_k + 1, sz[from] + sz[tem]); j >= 2; j--) {
             
             // 枚举分给子树 tem 的体积 k
             // k 的范围：1 到 sz[tem] (子树能提供的最大体积)
@@ -135,7 +210,7 @@ void dfs(int from) {
                 // dp[from][j] (原状态，不选tem或选tem之前的状态)
                 // vs
                 // dp[from][j - k] (from和其他子树凑 j-k 个) + dp[tem][k] (tem子树出 k 个)
-                dp[from][j] = max(dp[from][j], dp[from][j - k] + dp[tem][k]);
+                dp_k[from][j] = max(dp_k[from][j], dp_k[from][j - k] + dp_k[tem][k]);
             }
         }
         
@@ -144,12 +219,13 @@ void dfs(int from) {
     }
 }
 
+/*
 int main() {
     // 假设输入格式：N M (选M个课)
-    cin >> n >> m;
+    cin >> n_k >> m_k;
     
     // 0号点作为虚拟根节点，把所有无先修课的课程连到0号点
-    for (int i = 1; i <= n; i++) {
+    for (int i = 1; i <= n_k; i++) {
         int to, s; // to 代表 i 的先修课（父节点），s 代表学分
         cin >> to >> s;
         boss[to].push_back(i); // 建立从 父 -> 子 的边
@@ -157,18 +233,18 @@ int main() {
     }
 
     // 初始化 dp 数组
-    memset(dp, 0, sizeof(dp));
+    memset(dp_k, 0, sizeof(dp_k));
 
     // 从虚拟根节点 0 开始搜
     // 注意：题目说选 M 个课，加上虚拟根 0 号点，实际要选 M+1 个点
-    dfs(0);
+    dfs_knapsack(0);
 
     // 输出结果：在虚拟根 0 中选 m+1 个节点的最大价值
-    cout << dp[0][m + 1] << endl;
+    cout << dp_k[0][m_k + 1] << endl;
 
     return 0;
 }
-
+*/
 
 
 // ==================== 5. 换根 DP (Re-rooting DP) ====================
@@ -180,7 +256,7 @@ int main() {
 
 // 示例：求每个点到其他所有点的距离之和
 long long sum_dist[MAXN]; // 第一次DFS求子树内的距离和
-long long ans[MAXN];      // 最终答案
+long long ans_reroot[MAXN];      // 最终答案
 int sz_root[MAXN];        // 子树大小
 
 // 第一次 DFS：求子树信息
@@ -200,7 +276,7 @@ void dfs1(int u, int fa) {
 // 1. v 的子树节点距离减少：减少了 sz[v] 个节点，每个少走 1 步
 // 2. u 的非 v 子树节点距离增加：增加了 (N - sz[v]) 个节点，每个多走 1 步
 void dfs2(int u, int fa, int n) {
-    ans[u] = sum_dist[u]; // 记录答案
+    ans_reroot[u] = sum_dist[u]; // 记录答案
     
     for (int v : adj[u]) {
         if (v == fa) continue;
@@ -227,4 +303,4 @@ void dfs2(int u, int fa, int n) {
 //    - 无向图建树：必须加 if (v == fa) continue 防止死循环。
 //    - 边界条件：叶子节点的初始化。
 //    - 树上背包：注意循环边界优化，否则会退化成 O(N^2)。
-
+//    - 隐式建树：利用全局 pos 指针和递归序，不需要显式建 adj 数组。
