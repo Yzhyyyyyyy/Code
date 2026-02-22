@@ -1,0 +1,272 @@
+/*
+ * ======================================================================================
+ * Part 4.5 状态压缩动态规划 (State Compression DP) - 全能模板与讲义
+ * ======================================================================================
+ * 核心思想：利用二进制整数来表示一个集合的状态（如：棋盘的一行、图的子图、选取的数字集合）。
+ * 适用范围：数据规模极小 (N <= 20, M <= 20)。
+ * 常见模型：
+ * 1. 棋盘覆盖模型 (互不侵犯, 种草, 炮兵阵地)
+ * 2. 集合/路径模型 (TSP, 吃奶酪, 邦邦的大合唱站队)
+ * 3. 数论/分组模型 (寿司晚宴)
+ */
+
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <cstring>
+#include <cmath>
+
+using namespace std;
+
+// ======================================================================================
+// 模块一：位运算速查表 (Bitwise Cheat Sheet)
+// ======================================================================================
+// 熟练掌握这些操作是做状压 DP 的前提
+
+namespace BitUtils {
+    // 1. 检查第 i 位是否为 1 (从 0 开始计数)
+    inline bool is_set(int state, int i) { return (state >> i) & 1; }
+
+    // 2. 将第 i 位置为 1
+    inline int set_bit(int state, int i) { return state | (1 << i); }
+
+    // 3. 将第 i 位置为 0
+    inline int clear_bit(int state, int i) { return state & ~(1 << i); }
+
+    // 4. 将第 i 位取反
+    inline int toggle_bit(int state, int i) { return state ^ (1 << i); }
+
+    // 5. 取出最低位的 1 (Lowbit)
+    inline int lowbit(int x) { return x & -x; }
+
+    // 6. 检查是否有相邻的 1 (用于棋盘类，如互不侵犯、种草)
+    // 返回 true 表示有相邻 1 (非法)
+    inline bool has_adjacent_ones(int state) { return (state & (state << 1)) != 0; }
+
+    // 7. 统计二进制中 1 的个数 (__builtin_popcount 是 GCC 内置函数)
+    inline int count_ones(int state) { return __builtin_popcount(state); }
+
+    // 8. 枚举子集 (Subsets) - 高级技巧
+    // 遍历 mask 的所有子集 sub (不重不漏)
+    void iterate_subsets(int mask) {
+        for (int sub = mask; sub > 0; sub = (sub - 1) & mask) {
+            // logic here...
+        }
+    }
+}
+
+// ======================================================================================
+// 模块二：基础棋盘模型 - 单行依赖
+// 典型例题：P1879 [USACO06NOV] Corn Fields (种草)
+// 题目概要：N*M 网格，有些土地贫瘠(0)不能种，种草不能相邻。求方案数。
+// ======================================================================================
+
+namespace CornFields {
+    const int MAXN = 14;
+    const int MOD = 100000000;
+    
+    int n, m;
+    int map_limit[MAXN]; // 地形限制：第 i 行的二进制表示 (1为可种，0为不可种)
+    long long dp[MAXN][1 << MAXN]; // dp[i][state]: 第 i 行状态为 state 时的方案数
+    vector<int> valid_states; // 预处理出的单行合法状态
+
+    void solve() {
+        // 1. 预处理单行合法状态 (没有相邻的草)
+        for (int s = 0; s < (1 << m); s++) {
+            if (!BitUtils::has_adjacent_ones(s)) {
+                valid_states.push_back(s);
+            }
+        }
+
+        // 2. 初始化第一行
+        for (int state : valid_states) {
+            // 检查地形：state 必须是 map_limit[1] 的子集
+            // 即：state 中有 1 的地方，map_limit 中必须也是 1
+            if ((state & map_limit[1]) == state) {
+                dp[1][state] = 1;
+            }
+        }
+
+        // 3. 逐行递推
+        for (int i = 2; i <= n; i++) {
+            for (int curr : valid_states) { // 枚举当前行
+                if ((curr & map_limit[i]) != curr) continue; // 地形检查
+
+                for (int prev : valid_states) { // 枚举上一行
+                    if ((prev & map_limit[i-1]) != prev) continue; // 地形检查(可选)
+
+                    // 核心转移：上下行不能有相邻的草 (按位与为 0)
+                    if ((curr & prev) == 0) {
+                        dp[i][curr] = (dp[i][curr] + dp[i-1][prev]) % MOD;
+                    }
+                }
+            }
+        }
+        
+        // 4. 统计答案
+        long long ans = 0;
+        for (int state : valid_states) {
+            if ((state & map_limit[n]) == state)
+                ans = (ans + dp[n][state]) % MOD;
+        }
+        cout << "Corn Fields Ans: " << ans << endl;
+    }
+}
+
+// ======================================================================================
+// 模块三：进阶棋盘模型 - 多行依赖 (滚动数组)
+// 典型例题：P2704 [NOI2001] 炮兵阵地
+// 题目概要：炮兵攻击范围是 2 格。当前行受 i-1 和 i-2 行制约。
+// ======================================================================================
+
+namespace ArtilleryPosition {
+    int N, M;
+    int terrain[105]; // 地形压缩 (1为平原可放，0为山地不可放)
+    
+    // dp[row][curr_state][prev_state]
+    // 空间优化：利用滚动数组，第一维只需要开 3 即可
+    int dp[3][1024][1024]; 
+    vector<int> valid_states;
+    int ones_cnt[1024]; // 预处理每个状态放了几个炮兵
+
+    // 检查是否有左右距离 <= 2 的炮兵
+    bool check_self(int x) {
+        return !((x & (x << 1)) || (x & (x << 2)));
+    }
+
+    void solve() {
+        // 1. 预处理
+        for (int s = 0; s < (1 << M); s++) {
+            if (check_self(s)) {
+                valid_states.push_back(s);
+                ones_cnt[s] = BitUtils::count_ones(s);
+            }
+        }
+
+        // 2. DP 过程 (滚动数组)
+        for (int i = 0; i < N; i++) { // 0-indexed 行
+            for (int curr : valid_states) {
+                if ((curr & terrain[i]) != curr) continue; // 地形冲突
+
+                for (int prev : valid_states) {
+                    // 边界处理：第0行时 prev 只能是0
+                    if (i > 0 && (prev & terrain[i-1]) != prev) continue;
+                    if (curr & prev) continue; // 上下冲突
+
+                    for (int pprev : valid_states) {
+                        // 边界处理：第0/1行时 pprev 只能是0
+                        if (i > 1 && (pprev & terrain[i-2]) != pprev) continue;
+                        if (curr & pprev) continue; // 跨两行冲突
+                        if (prev & pprev) continue; // (可选)
+
+                        // 状态转移：dp[i] = max(..., dp[i-1] + 当前行数量)
+                        int val = (i == 0) ? 0 : dp[(i - 1 + 3) % 3][prev][pprev];
+                        dp[i % 3][curr][prev] = max(dp[i % 3][curr][prev], val + ones_cnt[curr]);
+                    }
+                }
+            }
+        }
+
+        // 3. 统计答案
+        int ans = 0;
+        for (int curr : valid_states) {
+            for (int prev : valid_states) {
+                ans = max(ans, dp[(N - 1) % 3][curr][prev]);
+            }
+        }
+        cout << "Artillery Ans: " << ans << endl;
+    }
+}
+
+// ======================================================================================
+// 模块四：集合/路径类状压 (TSP / Hamiltonian Path)
+// 典型例题：P4925, P3092, 旅行商问题
+// 核心状态：dp[mask][u] -> mask 表示走过的点集，u 表示当前停留在哪个点
+// ======================================================================================
+
+namespace TSP_Model {
+    const int MAXN = 20;
+    const int INF = 0x3f3f3f3f;
+    
+    int n;
+    int dist[MAXN][MAXN]; // 邻接矩阵
+    int dp[1 << MAXN][MAXN]; // dp[mask][u]
+
+    void solve() {
+        memset(dp, 0x3f, sizeof(dp)); // 求最小值，初始化为 INF
+        
+        // 初始化：假设从 0 号点出发
+        dp[1][0] = 0; 
+
+        // 1. 枚举状态 (从小到大)
+        for (int mask = 1; mask < (1 << n); mask++) {
+            // 2. 枚举当前所在的点 u (u 必须在 mask 里)
+            for (int u = 0; u < n; u++) {
+                if (!((mask >> u) & 1)) continue;
+
+                // 3. 枚举上一个点 v (v 必须也在 mask 里，且 v != u)
+                int prev_mask = mask ^ (1 << u); // 移除 u
+                if (prev_mask == 0) continue; 
+
+                for (int v = 0; v < n; v++) {
+                    if ((prev_mask >> v) & 1) {
+                        // 状态转移
+                        dp[mask][u] = min(dp[mask][u], dp[prev_mask][v] + dist[v][u]);
+                    }
+                }
+            }
+        }
+        // 结果通常是 min(dp[(1<<n)-1][i]) for all i
+    }
+}
+
+// ======================================================================================
+// 模块五：数论与质数状压 (高级技巧)
+// 典型例题：P2150 [NOI2015] 寿司晚宴
+// 核心思想：根号分治 + 状压
+// ======================================================================================
+
+namespace NumberTheoryDP {
+    // 小于 sqrt(500) ≈ 22 的质数只有 8 个：2,3,5,7,11,13,17,19
+    // 大于 22 的质数，每个数最多只包含 1 个
+    
+    struct Number {
+        int val;
+        int big_p; // 大质因子 (如果没有则为 -1)
+        int mask;  // 小质因子构成的 8 位二进制状态
+        
+        // 排序规则：按大质因子分组，同组的一起处理
+        bool operator<(const Number &b) const {
+            return big_p < b.big_p;
+        }
+    } nums[505];
+
+    long long dp[256][256]; // dp[mask_A][mask_B]
+    long long f1[256][256], f2[256][256]; // 临时数组，用于处理同一大质因子组内的互斥
+
+    void solve_sushi_logic(int n, int p) {
+        // 伪代码逻辑：
+        // 1. 预处理每个数 2~n 的 big_p 和 mask
+        // 2. sort(nums)
+        // 3. 遍历 nums
+        //    - 如果 nums[i] 的 big_p 与上一个不同（新的一组大质数）：
+        //      将 f1, f2 重新初始化为当前的 dp
+        //    - 转移：
+        //      f1[s1|mask][s2] += f1[s1][s2] (甲选)
+        //      f2[s1][s2|mask] += f2[s1][s2] (乙选)
+        //    - 每组处理完后，更新 dp：
+        //      dp[s1][s2] = f1[s1][s2] + f2[s1][s2] - dp_old[s1][s2] (容斥原理去重)
+        
+        // 最终答案：sum(dp[s1][s2]) where (s1 & s2) == 0
+    }
+}
+
+int main() {
+    // 这里是主函数，根据具体题目调用上述命名空间中的 solve()
+    // 例如：
+    // cin >> CornFields::n >> CornFields::m;
+    // ... 输入地图 ...
+    // CornFields::solve();
+    
+    return 0;
+}
