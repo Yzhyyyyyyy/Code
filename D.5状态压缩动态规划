@@ -1,9 +1,13 @@
-// ==================== 1. 核心定义与思想 ====================
-// 状压 DP：利用计算机二进制的性质，将一个“集合”或“状态”压缩成一个整数。
+// ==================================================================================
+//                            状压 DP (State Compression DP) 终极笔记
+// ==================================================================================
+
+// ==================== 1. 核心定义与分类 ====================
+// 核心思想：利用二进制性质，将一个“集合”或“几何形状”压缩成一个整数 (int)。
 // 适用范围：数据规模极小（通常 N <= 20，或者 M <= 10）。
-// 核心状态：dp[i][state] = 处理到第 i 阶段（行/节点），当前状态为 state 时的最优解。
-// 核心逻辑：枚举当前状态 -> 枚举上一层状态 -> 判断合法性 -> 转移。
-// 空间优化：通常使用滚动数组，因为第 i 行只和 i-1 (或 i-2) 行有关。
+// 两大流派：
+//   1. 棋盘/填充类：关注“行与行”的几何关系 (如：互不侵犯、炮兵阵地)。
+//   2. 集合/路径类：关注“点与点”的连通性与访问历史 (如：TSP、吃奶酪)。
 
 // ==================== 2. 基础工具：位运算速查 (Bitwise Operations) ====================
 // 熟练掌握这些操作是做状压 DP 的前提，建议背诵。
@@ -27,19 +31,21 @@ int lowbit = x & -x;
 
 // 6. 检查是否有相邻的 1 (用于判断行内是否合法，如互不侵犯)
 // 如果 (x & (x << 1)) != 0，说明有相邻的 1
-bool has_adjacent = (x & (x << 1)) || (x & (x >> 1));
+bool has_adjacent = (x & (x << 1));
 
-// 7. 枚举子集 (Subsets) - 高级技巧 (用于 P3959 宝藏等)
-// 遍历 mask 的所有子集 sub
-for (int sub = mask; sub > 0; sub = (sub - 1) & mask) {
-// ...
+// 7. 计算二进制中 1 的个数 (__builtin_popcount(x) 或 手写)
+int countOne(int x) {
+    int res = 0;
+    while(x) { res++; x &= (x - 1); }
+    return res;
 }
 */
 
-// ==================== 3. 基础模型：棋盘类/单行依赖 ====================
+// ==================== 3. 模型一：基础棋盘类 (单行依赖) ====================
 // 经典例题：P1879 [USACO06NOV] Corn Fields (种草)
 // 场景：N*M 的网格，某些格子不能放，放了东西不能相邻。
-// 策略：一行一行处理，当前行的状态只受上一行限制。
+// 状态：dp[i][state] -> 第 i 行状态为 state 时的方案数/最大值。
+// 转移：只看上一行 (i-1)。
 
 #include <vector>
 #include <iostream>
@@ -49,195 +55,162 @@ using namespace std;
 
 const int MOD = 100000000;
 int n, m;
-int dp[2][1 << 12];    // 滚动数组优化
-int locate[14];        // 地形限制 (1表示不能种)
-vector<int> available; // 预处理出所有单行合法的状态
-
-// 辅助函数：计算1的个数（如果是求最大种植数用这个，求方案数则不需要）
-int countOne(int x) {
-    int res = 0;
-    while(x) { res++; x &= (x - 1); }
-    return res;
-}
+int dp_corn[13][1 << 12]; // 不用滚动数组也可以，N很小
+int map_limit[13];        // 地形限制 (1表示土地肥沃，0表示贫瘠，需根据题目转换)
+vector<int> legal_states; // 预处理出所有单行合法的状态
 
 void solve_corn_fields() {
-    // 1. 预处理所有可能的单行合法状态
+    // 1. 预处理单行合法状态 (行内不相邻)
     for (int i = 0; i < (1 << m); i++) {
-        // 【注意】位运算优先级：((i & (i << 1)) == 0)
-        if ((i & (i << 1)) == 0) {
-            available.push_back(i);
-        }
+        if ((i & (i << 1)) == 0) legal_states.push_back(i);
     }
 
-    // 2. 逐行递推
-    for (int i = 0; i < n; i++) {
-        int now = i % 2;
-        int pre = 1 - now;
-        
-        // 【关键】清空当前行画布
-        memset(dp[now], 0, sizeof(dp[now]));
+    // 2. 初始化第一行
+    for (int state : legal_states) {
+        if ((state & map_limit[1]) == state) // 确保种在肥沃土地上
+            dp_corn[1][state] = 1;
+    }
 
-        for (int tem : available) { // 枚举当前行
-            // 地形冲突检查：如果 tem 种在了贫瘠土地(locate[i])上
-            if ((tem & locate[i]) != 0) continue;
+    // 3. 逐行递推
+    for (int i = 2; i <= n; i++) {
+        for (int curr : legal_states) { // 枚举当前行
+            if ((curr & map_limit[i]) != curr) continue; // 地形检查
 
-            if (i == 0) {
-                dp[now][tem] = 1; // 方案数初始化为1 (如果是求最大数则 = countOne(tem))
-            } 
-            else {
-                for (int j : available) { // 枚举上一行
-                    // 检查：当前行 vs 上一行 (上下不相邻)
-                    if ((tem & j) == 0) {
-                        dp[now][tem] = (dp[now][tem] + dp[pre][j]) % MOD;
+            for (int prev : legal_states) { // 枚举上一行
+                // 行间冲突检查 (上下不相邻)
+                if ((curr & prev) == 0) {
+                    dp_corn[i][curr] = (dp_corn[i][curr] + dp_corn[i-1][prev]) % MOD;
+                }
+            }
+        }
+    }
+}
+
+// ==================== 4. 模型二：棋盘 + 背包 (数量限制) ====================
+// 经典例题：P1896 [SCOI2005] 互不侵犯 (King)
+// 场景：在 N*N 中放 K 个国王，互不攻击。
+// 特点：不仅要状态合法，还要正好用完 K 个棋子。
+// 状态：dp[i][state][count] -> 第 i 行，状态 state，前 i 行共用了 count 个棋子。
+// 本质：状压 DP + 分组背包。
+
+long long dp_king[10][1 << 9][85]; 
+int cnt[1 << 9]; // 预处理每个状态包含的棋子数
+
+void solve_kings() {
+    int K; // 总棋子数
+    // ... 预处理 legal_states 和 cnt ...
+
+    // 初始化第一行
+    for (int s : legal_states) 
+        if (cnt[s] <= K) dp_king[1][s][cnt[s]] = 1;
+
+    for (int i = 2; i <= n; i++) {
+        for (int curr : legal_states) {
+            for (int prev : legal_states) {
+                // 检查冲突：垂直、左下、右下
+                if ((curr & prev) == 0 && 
+                    (curr & (prev << 1)) == 0 && 
+                    (curr & (prev >> 1)) == 0) {
+                    
+                    // 背包转移：枚举之前已用的总数 j
+                    // 当前行用了 cnt[curr]，所以之前最多用 K - cnt[curr]
+                    for (int j = 0; j <= K - cnt[curr]; j++) {
+                        dp_king[i][curr][j + cnt[curr]] += dp_king[i-1][prev][j];
                     }
                 }
             }
         }
     }
-    // 3. 统计最后一行所有状态的和
+    // 统计 dp[n][state][K] 的和
 }
 
-// ==================== 4. 进阶模型：多行依赖 (炮兵阵地) ====================
+// ==================== 5. 模型三：多行依赖 (滚动数组) ====================
 // 经典例题：P2704 [NOI2001] 炮兵阵地
-// 难点：炮兵攻击范围是 2 格。当前行不仅受 i-1 行影响，还受 i-2 行影响。
-// 解决：状态需要增加一维，记录上一行的状态。
-// 定义：dp[滚动][当前行状态][上一行状态]
+// 难点：攻击范围 2 格，受 i-1 和 i-2 影响。
+// 状态：dp[滚动][当前行][上一行] -> 三维数组。
 
-/* 
-   ⚠️⚠️⚠️【血泪坑点总结 - 考试前必看】⚠️⚠️⚠️
-   1. 优先级灾难：if ((i & (i << 1)) == 0) -> 必须加括号！
-   2. Memset 自杀：memset(dp[now], -1, ...) -> 必须清空 now，绝不能清空 pre！
-   3. 冲突检查漏项：必须检查 (tem&j), (tem&k), (j&k) 三者！缺一不可！
-*/
-
-int dp_cannon[2][1024][1024]; // dp[滚动][当前][上]
-// locate 和 available 复用上面的定义
+int dp_cannon[2][1024][1024]; // 滚动数组优化空间
 
 void solve_cannon() {
-    // ... 输入 locate 和预处理 available (同上) ...
-    // available 预处理条件：((i & (i << 1)) == 0) && ((i & (i << 2)) == 0)
-
+    // 预处理略...
     for (int i = 0; i < n; i++) {
         int now = i % 2;
         int pre = 1 - now;
-        
-        // 【坑点2】初始化为 -1，表示状态不可达
-        memset(dp_cannon[now], -1, sizeof(dp_cannon[now]));
+        // ⚠️ 必须清空当前层，因为是 max 转移
+        memset(dp_cannon[now], -1, sizeof(dp_cannon[now])); 
 
-        for (int tem : available) {
-            if ((tem & locate[i]) != 0) continue; // 地形冲突
-
-            // --- 情况 A: 第一行 (i=0) ---
-            if (i == 0) {
-                dp_cannon[now][tem][0] = countOne(tem);
-            }
-            // --- 情况 B: 第二行 (i=1) ---
-            else if (i == 1) {
-                for (int j : available) { // 枚举上一行
-                    if ((tem & j) == 0) { // 检查当前 vs 上一
-                        if (dp_cannon[pre][j][0] != -1)
-                            dp_cannon[now][tem][j] = max(dp_cannon[now][tem][j], dp_cannon[pre][j][0] + countOne(tem));
-                    }
-                }
-            }
-            // --- 情况 C: 第三行及以后 (i>=2) ---
-            else {
-                for (int j : available) { // 枚举上一行
-                    // 【提速技巧】先检查 tem 和 j，冲突直接 continue
-                    if ((tem & j) != 0) continue; 
-
-                    for (int k : available) { // 枚举上上行
-                        // 【坑点3】必须检查三者冲突，尤其是 j & k (保证历史清白)
-                        if (((tem & k) == 0) && ((j & k) == 0)) {
-                            if (dp_cannon[pre][j][k] != -1)
-                                dp_cannon[now][tem][j] = max(dp_cannon[now][tem][j], dp_cannon[pre][j][k] + countOne(tem));
-                        }
+        for (int curr : legal_states) {
+            // ... 地形检查 ...
+            // 若 i >= 2:
+            for (int last : legal_states) { // 上一行
+                if (curr & last) continue; // 剪枝
+                
+                for (int last2 : legal_states) { // 上上行
+                    // 核心冲突检查：三行之间两两不能冲突
+                    if (!(curr & last) && !(curr & last2) && !(last & last2)) {
+                        // 转移
+                        dp_cannon[now][curr][last] = max(dp_cannon[now][curr][last], 
+                                                         dp_cannon[pre][last][last2] + cnt[curr]);
                     }
                 }
             }
         }
     }
-    // 统计答案：遍历 dp[(n-1)%2][i][j] 取 max
 }
 
-// ==================== 5. 集合类/连通性状压 (TSP问题) ====================
-// 经典例题：P1896 互不侵犯 (其实是棋盘类)，但此处指 P4925 或 TSP 类问题
-// 场景：吃奶酪、旅行商问题、经过所有点的最短路径。
+// ==================== 6. 模型四：集合/路径类 (TSP问题) ====================
+// 经典例题：P1433 吃奶酪 / P4925 / TSP
+// 场景：旅行商问题、经过所有点的最短路径。
 // 状态：dp[mask][u] -> mask 表示已经走过的点集(二进制)，u 表示当前停留在节点 u。
+// 区别：这里不分“行”，而是分“集合大小”或“最后到达的点”。
 
 const int MAX_TSP = 20;
-int dp_tsp[1 << MAX_TSP][MAX_TSP];
-int dist[MAX_TSP][MAX_TSP]; // 距离矩阵
+double dp_tsp[1 << MAX_TSP][MAX_TSP];
+double dist[MAX_TSP][MAX_TSP]; // 距离矩阵
 
 void solve_tsp() {
-// 初始化为无穷大
-// memset(dp_tsp, 0x3f, sizeof(dp_tsp));
+    // 初始化为无穷大
+    // memset(dp_tsp, 127, sizeof(dp_tsp));
 
+    // 假设从 0 点出发 (视题目而定，有时是任意点出发)
+    dp_tsp[1][0] = 0; 
 
-// 假设从 0 点出发，状态为 00...01
-dp_tsp[1][0] = 0; 
+    // 1. 枚举状态 mask (从小到大，确保子状态先被计算)
+    for (int mask = 1; mask < (1 << n); mask++) { 
+        // 2. 枚举当前所在的点 u (u 必须在 mask 里)
+        for (int u = 0; u < n; u++) { 
+            if (!((mask >> u) & 1)) continue; 
+            
+            // 3. 枚举上一个点 v (v 必须在 mask 移除 u 后的集合里)
+            int prev_mask = mask ^ (1 << u);
+            if (prev_mask == 0) continue; 
 
-// 1. 枚举状态 (从小到大，确保子状态先被计算)
-for (int state = 1; state < (1 << n); state++) { 
-    // 2. 枚举当前所在的点 u
-    for (int u = 0; u < n; u++) { 
-        if (!((state >> u) & 1)) continue; // 状态里必须包含 u
-        
-        int prev_state = state ^ (1 << u); // 移除 u 得到上一个状态
-        if (prev_state == 0) continue; 
-        
-        // 3. 枚举上一个点 v
-        for (int v = 0; v < n; v++) { 
-            if ((prev_state >> v) & 1) {
-                dp_tsp[state][u] = min(dp_tsp[state][u], dp_tsp[prev_state][v] + dist[v][u]);
+            for (int v = 0; v < n; v++) { 
+                if ((prev_mask >> v) & 1) {
+                    // 转移方程：从 v 走到 u
+                    dp_tsp[mask][u] = min(dp_tsp[mask][u], dp_tsp[prev_mask][v] + dist[v][u]);
+                }
             }
         }
     }
 }
-}
 
-// ==================== 6. 特殊技巧：映射与质数 (寿司晚宴) ====================
-// 经典例题：P2150 [NOI2015] 寿司晚宴
-// 难点：N 很大 (N<=500)，不能直接状压。
-// 突破口：根号分治。
-// 观察：一个数 <= 500，最多只包含一个 > sqrt(500) (即22) 的大质数。
-// 小质数：2, 3, 5, 7, 11, 13, 17, 19 (共8个)。
-// 策略：
-// 1. 将所有数按“大质数”分组。
-// 2. 对于小质数，用 8 位二进制状压 (mask)。
-// 3. dp[mask1][mask2]：甲选了 mask1 的质数集合，乙选了 mask2 的质数集合。
-// 4. 转移时保证 (mask1 & mask2) == 0。
-
+// ==================== 7. 避坑指南 (Blood & Tears) ====================
 /*
-// 这是一个非常高级的技巧，通常用于数论相关的状压
-struct Node {
-int val;
-int big_p; // 大质数因子
-int mask;  // 小质数因子的位压缩状态
+   1. 优先级灾难：
+      错误：if (i & i << 1 == 0)  -> == 优先级高于 &
+      正确：if ((i & (i << 1)) == 0)
 
+   2. 数组越界：
+      - 这里的数组通常很大 (1<<20)，小心 MLE。
+      - 涉及减法下标 (如 k - cnt[j]) 时，务必检查是否 < 0。
 
-// 排序：按大质数分组，同组的一起处理
-bool operator<(const Node &b) const {
-    return big_p < b.big_p;
-}
-} nums[MAXN];
+   3. 初始化问题：
+      - 求最大值：memset -1 或 0。
+      - 求最小值：memset 0x3f (无穷大)。
+      - 滚动数组每次使用前要 memset 清空当前层。
 
-// 核心思想伪代码：
-// sort(nums);
-// for (each group of big_p) {
-//     memcpy(f1, dp); memcpy(f2, dp);
-//     for (x in group) {
-//         // 甲选x: 更新 f1 (累加 x 的小质数 mask)
-//         // 乙选x: 更新 f2 (累加 x 的小质数 mask)
-//     }
-//     // 合并：dp = f1 + f2 - dp_old (容斥，减去重复计算的都不选的情况)
-// }
+   4. 循环顺序：
+      - 棋盘类：外层循环是 行 (Row)。
+      - 集合类：外层循环是 状态 (Mask)。
 */
-
-// ==================== 核心总结 ====================
-// 1. 识别标志：N 极小 (<=20)，或者题目具有明显的“行与行”、“点与点”的排斥/依赖关系。
-// 2. 空间杀手：数组大小是 2^N，注意不要爆内存 (MLE)。
-// 3. 时间优化：
-//    - 预处理合法状态 (valid_states)，避免在 DP 内部遍历 2^N 个无效状态。
-//    - 滚动数组 (Rolling Array) 优化空间，尤其是多行依赖时。
-// 4. 调试技巧：打印二进制 (bitset<10>(x)) 观察状态转移是否符合预期。
