@@ -16,3 +16,24 @@ string s2 = s.substr(start_index, length);
 
 
 //注意求最小值最大值定义的时候要看取值可以不可以是负数，应该定义为INT_MIN,INT_MAX;
+
+
+
+/ 什么时候需要 getchar() 吃回车
+// 场景：混合使用“读数值” (cin >>, scanf) 和 “读整行/字符” (getline, getchar, scanf %c) 时。
+
+int n;
+string s;
+cin >> n;       // 读完数字，光标停在换行符前面
+getchar();      // 【关键】吃掉那个换行符，否则 s 会读成空
+getline(cin, s);
+
+“输入流指针机制”
+翻译成人话：
+
+cin >> a 和 scanf("%d") 很智能：它们会自动跳过空格、Tab、回车，直到找到下一个数据。
+getline 和 scanf("%c") 很老实：它们不跳过任何东西。如果你刚输完一个数按了回车，它们会立刻读到那个“回车符”，然后觉得任务结束了（读到了空行/回车）。
+// 常用口诀
+// 1. 数后读行 (cin >> n 后接 getline)：必须加 getchar()。
+// 2. 数后读符 (scanf("%d") 后接 scanf("%c"))：必须加 getchar()。
+// 3. 全程读数 (全是 cin >> 或 scanf("%d"))：不需要加，自动跳过。
