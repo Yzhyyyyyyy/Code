@@ -10,12 +10,12 @@
 //   2. 步数非常大（比如 10^9 步），或者需要快速查询路径信息。
 //   3. 满足结合律：从 A 走到 B，再从 B 走到 C，可以合并为 A 走到 C。
 
-// 核心状态：
-//   dp[u][i] -> 从 u 出发，进行了 2^i 步操作后到达的状态/位置。
-//   val[u][i] -> 从 u 出发，进行了 2^i 步操作累计的代价/最大值/最小值。
+// 核心状态 (根据你的习惯，层数 i 放第一维)：
+//   fa[i][u] -> 从 u 出发，进行了 2^i 步操作后到达的状态/位置。
+//   val[i][u] -> 从 u 出发，进行了 2^i 步操作累计的代价/最大值/最小值。
 
 // 状态转移方程（通用）：
-//   dp[u][i] = dp[ dp[u][i-1] ][ i-1 ]
+//   fa[i][u] = fa[i-1][ fa[i-1][u] ]
 //   解释：从 u 走 2^i 步 = 先走 2^{i-1} 到达中转点 temp，再从 temp 走 2^{i-1} 步。
 
 // ==================== 2. 模型一：图上的快速幂 (P1613 跑路) ====================
@@ -23,32 +23,31 @@
 // 难点：把“距离”转化为“连通性”。
 // 思路：预处理出所有距离为 2^k 的两点，在它们之间连一条权值为 1 的边，跑 BFS/Floyd。
 
-#include <iostream>
-#include <cstring>
-#include <algorithm>
+#include <bits/stdc++.h>
 using namespace std;
 
-// g[i][j][k] 表示：从 i 到 j 是否存在一条长度为 2^k 的路径
-bool g[55][55][65]; 
+// g[k][i][j] 表示：从 i 到 j 是否存在一条长度为 2^k 的路径
+// 你的习惯：层数 k 放第一维
+bool g[65][55][55]; 
 int dist[55][55];   // 最终的最短路图
-int n_run, m_run;
+int n, m;
 
 void solve_running() {
     memset(dist, 0x3f, sizeof(dist));
     
     // 1. 初始化：读入边，距离为 2^0 = 1
-    // for (edges) { g[u][v][0] = true; dist[u][v] = 1; }
+    // for (edges) { g[0][u][v] = true; dist[u][v] = 1; }
 
     // 2. 倍增预处理连通性 (类似 Floyd)
     // 注意：k (幂次) 必须在最外层！
     for (int k = 1; k <= 64; k++) { 
-        for (int i = 1; i <= n_run; i++) {
-            for (int t = 1; t <= n_run; t++) { // 中转点
-                for (int j = 1; j <= n_run; j++) {
+        for (int i = 1; i <= n; i++) {
+            for (int t = 1; t <= n; t++) { // 中转点
+                for (int j = 1; j <= n; j++) {
                     // 如果 i->t 有 2^{k-1} 且 t->j 有 2^{k-1}
                     // 那么 i->j 就有 2^k
-                    if (g[i][t][k-1] && g[t][j][k-1]) {
-                        g[i][j][k] = true;
+                    if (g[k-1][i][t] && g[k-1][t][j]) {
+                        g[k][i][j] = true;
                         dist[i][j] = 1; // 关键：题目说跑 2^k 距离只需要 1 秒
                     }
                 }
@@ -62,23 +61,59 @@ void solve_running() {
 
 // ==================== 3. 模型二：树上倍增 & LCA (基础) ====================
 // 这是倍增 DP 的基石。
-// f[u][i] 表示 u 的第 2^i 个祖先。
+// fa[i][u] 表示 u 的第 2^i 个祖先。
 
-int f[100005][20]; // 2^20 > 10^6
-int depth[100005];
+const int MAXN = 500005; // 记得开够大！
+vector<int> boss[MAXN];
+int fa[32][MAXN]; // 你的习惯：层数在前
+int depth[MAXN];
 
-void init_lca(int u, int father) {
-    depth[u] = depth[father] + 1;
-    f[u][0] = father; // 2^0 = 1代祖先就是父节点
-
-    for (int i = 1; i < 20; i++) {
-        // 核心转移：我的 2^i 祖先 = 我的 2^{i-1} 祖先的 2^{i-1} 祖先
-        f[u][i] = f[f[u][i-1]][i-1];
-    }
+void dfs(int from, int father, int deep) {
+    fa[0][from] = father; // 2^0 = 1代祖先就是父节点
+    depth[from] = deep;
     
-    for (auto v : adj[u]) {
-        if (v != father) init_lca(v, u);
+    for (int i : boss[from]) {
+        if (i != father) {
+            dfs(i, from, deep + 1);
+        }
     }
+}
+
+// 预处理倍增数组
+void init_lca(int n) {
+    // 外层循环必须是层数 i
+    for (int i = 1; i < 32; i++) {
+        for (int j = 1; j <= n; j++) {
+            // 核心转移：我的 2^i 祖先 = 我的 2^{i-1} 祖先的 2^{i-1} 祖先
+            fa[i][j] = fa[i-1][ fa[i-1][j] ];
+        }
+    }
+}
+
+// LCA 查询 (你的 gap 写法)
+int lca(int x, int y) {
+    if (depth[x] < depth[y]) swap(x, y); // 保证 x 深
+    
+    int gap = depth[x] - depth[y];
+    
+    // 1. 让 x 跳到和 y 同一层
+    if (gap > 0) {
+        for (int i = 31; i >= 0; i--) {
+            if (((gap >> i) & 1) == 1)
+                x = fa[i][x];
+        }
+    }
+
+    if (x == y) return x;
+
+    // 2. 一起往上跳
+    for (int i = 31; i >= 0; i--) {
+        if (fa[i][x] != fa[i][y]) {
+            x = fa[i][x];
+            y = fa[i][y];
+        }
+    }
+    return fa[0][x];
 }
 
 // ==================== 4. 模型三：复杂状态转移 (P1081 开车旅行) ====================
@@ -87,27 +122,23 @@ void init_lca(int u, int father) {
 //   1. 预处理每个人在每个点会去哪 (利用 set 或 双向链表)。
 //   2. 状态里要分 A 开车和 B 开车，或者把“A走一步+B走一步”看作一轮。
 // 状态：
-//   f[u][i] -> 从 u 出发，两人轮流开了 2^i 轮 (即 A走2^i步, B走2^i步) 后到达的城市。
-//   da[u][i] -> 从 u 出发，2^i 轮中 A 行驶的总路程。
-//   db[u][i] -> 从 u 出发，2^i 轮中 B 行驶的总路程。
+//   fa[i][u] -> 从 u 出发，两人轮流开了 2^i 轮 (即 A走2^i步, B走2^i步) 后到达的城市。
+//   da[i][u] -> 从 u 出发，2^i 轮中 A 行驶的总路程。
+//   db[i][u] -> 从 u 出发，2^i 轮中 B 行驶的总路程。
 
-const int MAXN = 100005;
-int go[MAXN][2]; // go[u][0] 是 B 的目标(最近), go[u][1] 是 A 的目标(次近)
-int f_drive[MAXN][20]; // 2^i 轮后的位置
-long long da[MAXN][20], db[MAXN][20]; // 路程和
+int fa_drive[20][MAXN]; // 2^i 轮后的位置 (层数在前)
+long long da[20][MAXN], db[20][MAXN]; // 路程和
 
-void solve_drive() {
+void solve_drive(int n) {
     // 1. 预处理 go[u][0] 和 go[u][1] (利用 set 找前驱后继，略)
 
     // 2. 初始化 i=0 (即 2^0 = 1 轮)
     // 一轮定义为：A 先走一步，B 再走一步
     for (int i = 1; i <= n; i++) {
-        int mid = go[i][1]; // A 先走
-        int end = go[mid][0]; // B 再走
-        
-        f_drive[i][0] = end;
-        da[i][0] = dist(i, mid);
-        db[i][0] = dist(mid, end);
+        // int mid = ...; int end = ...;
+        // fa_drive[0][i] = end;
+        // da[0][i] = ...;
+        // db[0][i] = ...;
     }
 
     // 3. 倍增递推
@@ -115,12 +146,12 @@ void solve_drive() {
     for (int p = 1; p < 20; p++) {
         for (int u = 1; u <= n; u++) {
             // 位置转移：跳 2^p 轮 = 跳 2^{p-1} 轮，再跳 2^{p-1} 轮
-            int mid = f_drive[u][p-1];
-            f_drive[u][p] = f_drive[mid][p-1];
+            int mid = fa_drive[p-1][u];
+            fa_drive[p][u] = fa_drive[p-1][mid];
 
             // 代价累加
-            da[u][p] = da[u][p-1] + da[mid][p-1];
-            db[u][p] = db[u][p-1] + db[mid][p-1];
+            da[p][u] = da[p-1][u] + da[p-1][mid];
+            db[p][u] = db[p-1][u] + db[p-1][mid];
         }
     }
 
@@ -147,21 +178,22 @@ void solve_drive() {
 
 // ==================== 6. 避坑指南 (Blood & Tears) ====================
 /*
-   1. 循环顺序至关重要：
-      - 倍增预处理时：外层循环必须是 幂次 (j 或 k)，内层是 节点 (u)。
-      - 错误写法：for(u) for(j) -> 这样算 dp[u][j] 时 dp[...][j-1] 可能还没算出来。
+   1. 循环顺序至关重要 (死记硬背)：
+      - 倍增预处理时：外层循环必须是 幂次 (i)，内层是 节点 (j)。
+      - 你的写法：for(int i=1; i<32; i++) for(int j=1; j<=n; j++)。
+      - 错误写法：反过来写会导致 fa[i][j] 用到未计算的 fa[i-1][...]。
    
-   2. 边界检查：
-      - 跳跃时如果跳出了边界（比如跳到了 0 号点），后续的跳跃必须停止或保持在 0 号点。
-      - P1081 中，如果 A 走一步就没路了，这一轮就不完整，不能算进倍增数组或者要做特殊标记。
+   2. 数组维度与大小：
+      - 习惯：fa[32][MAXN] (层数在前)。
+      - 致命坑点：MAXN 一定要看题目范围！比如 N=500,000 时，开 50005 会 RE。
+      - 空间计算：32 * 500000 * 4 bytes ≈ 64MB，通常不会 MLE。
 
-   3. 空间计算：
-      - 2^17 ≈ 13万，2^20 ≈ 100万。
-      - N=10^5 开 f[N][20] 足够。
-      - 这里的空间消耗是 O(N log N)，注意不要 MLE。
+   3. 边界检查与位运算：
+      - 位运算优先级：((gap>>i)&1)==1 记得加括号。
+      - LCA 最后一步：跳完循环后，x 和 y 停在 LCA 的下一层，答案是 fa[0][x]。
 
    4. 拼凑思想：
-      - 查询时，不是直接找 dp[u][k]，而是像把整数转二进制一样。
+      - 查询时，不是直接找 fa[k][u]，而是像把整数转二进制一样。
       - 比如要走 13 步：13 = 8 + 4 + 1。
       - 先跳 2^3，再从新位置跳 2^2，再从新位置跳 2^0。
 */
