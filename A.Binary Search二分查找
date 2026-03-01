@@ -33,7 +33,7 @@ int binarySearch(vector<int>& nums, int k) {
     
     while (left < right) {
         // 取mid 要加1 避免死循环
-        int mid = (left + right + 1) / 2;
+        int mid = (left + right) / 2;
         
         if (judge(mid, nums, k)) {
             right = mid; // 满足条件，尝试更小的值
