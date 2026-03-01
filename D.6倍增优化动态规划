@@ -31,7 +31,7 @@ using namespace std;
 // 你的习惯：层数 k 放第一维
 bool g[65][55][55]; 
 int dist[55][55];   // 最终的最短路图
-int n, m;
+int n_run, m_run;
 
 void solve_running() {
     memset(dist, 0x3f, sizeof(dist));
@@ -42,9 +42,9 @@ void solve_running() {
     // 2. 倍增预处理连通性 (类似 Floyd)
     // 注意：k (幂次) 必须在最外层！
     for (int k = 1; k <= 64; k++) { 
-        for (int i = 1; i <= n; i++) {
-            for (int t = 1; t <= n; t++) { // 中转点
-                for (int j = 1; j <= n; j++) {
+        for (int i = 1; i <= n_run; i++) {
+            for (int t = 1; t <= n_run; t++) { // 中转点
+                for (int j = 1; j <= n_run; j++) {
                     // 如果 i->t 有 2^{k-1} 且 t->j 有 2^{k-1}
                     // 那么 i->j 就有 2^k
                     if (g[k-1][i][t] && g[k-1][t][j]) {
@@ -161,10 +161,15 @@ vector<Edge> tree[MAXN]; // 注意：MAXN 要够大
 // 3. 倍增数组
 int min_w[20][MAXN]; // 路径上的最小值 (瓶颈)
 int fa_dsu[MAXN];    // 并查集数组
+const int INF = 0x3f3f3f3f;
 
 // --- Step 1: Kruskal 建最大生成树 ---
 bool cmp(RawEdge a, RawEdge b) {
     return a.w > b.w; // 【关键】大的排前面！
+}
+
+int find(int x) {
+    return fa_dsu[x] == x ? x : fa_dsu[x] = find(fa_dsu[x]);
 }
 
 void kruskal(int n) {
@@ -172,7 +177,7 @@ void kruskal(int n) {
     for(int i=1; i<=n; i++) fa_dsu[i] = i;
     
     for (auto e : all_edges) {
-        int u = find(e.u), v = find(e.v); // find 函数同上
+        int u = find(e.u), v = find(e.v);
         if (u != v) {
             fa_dsu[u] = v;
             // 建树是无向的，双向加边
@@ -234,7 +239,46 @@ int query(int x, int y) {
     return ans;
 }
 
-// ==================== 5. 避坑指南 (Blood & Tears) ====================
+// ==================== 5. 模型四：ST 表 (RMQ 问题) ====================
+// 典型题目：P3865 【模板】ST 表
+// 适用场景：静态数组区间最值查询 (Max/Min/GCD)。
+// 核心差异：LCA 是“拼凑”（二进制拆分），ST 表是“覆盖”（允许重叠）。
+// 复杂度：预处理 O(N log N)，查询 O(1)。
+
+const int ST_LOG = 21;
+int st[ST_LOG][MAXN]; // st[i][j] 表示从 j 开始长度为 2^i 的最大值
+int Log[MAXN];        // 预处理 log2 值
+
+void init_st(int n) {
+    // 1. 预处理 Log 数组 (递推法)
+    // Log[i] = floor(log2(i))
+    Log[1] = 0;
+    Log[2] = 1;
+    for (int i = 3; i <= n; i++) {
+        Log[i] = Log[i / 2] + 1;
+    }
+
+    // 2. 倍增构建 ST 表
+    // 外层循环枚举长度指数 i (从 1 到 Log[n])
+    for (int i = 1; i <= Log[n]; i++) {
+        // 内层循环枚举起点 j
+        // 边界条件：j + 2^i - 1 <= n
+        for (int j = 1; j + (1 << i) - 1 <= n; j++) {
+            // 状态转移：max(左半边, 右半边)
+            st[i][j] = max(st[i-1][j], st[i-1][j + (1 << (i-1))]);
+        }
+    }
+}
+
+// O(1) 查询
+int query_st(int L, int R) {
+    int k = Log[R - L + 1]; // 找到最大的幂次 k
+    // 核心：用两个长度为 2^k 的区间覆盖 [L, R]
+    // max(左边 2^k, 右边 2^k)
+    return max(st[k][L], st[k][R - (1 << k) + 1]);
+}
+
+// ==================== 6. 避坑指南 (Blood & Tears) ====================
 /*
    1. 循环顺序至关重要 (死记硬背)：
       - 倍增预处理时：外层循环必须是 幂次 (i)，内层是 节点 (u)。
@@ -244,20 +288,19 @@ int query(int x, int y) {
    2. 数组维度与大小：
       - 习惯：fa[20][MAXN] (层数在前)。
       - 致命坑点：MAXN 一定要看题目范围！比如 N=500,000 时，开 50005 会 RE。
-      - 空间计算：20 * 500000 * 4 bytes ≈ 40MB，通常不会 MLE。
+      - ST 表的 Log 层数：2^20 ≈ 10^6，通常开 21 就够了。
 
-   3. 森林的处理：
-      - 图可能不连通！Kruskal 跑完可能是一片森林。
-      - DFS 时要遍历所有点：if (!visited[i]) dfs(i, 0, 1, INF);
-      - 查询前要先用 find(x) != find(y) 判断连通性。
+   3. ST 表的特殊性：
+      - 只有 Max/Min/GCD 这种“可重复贡献”的操作才能用 O(1) 覆盖法。
+      - 如果是求 Sum (区间和)，ST 表无法 O(1) 查询（重叠部分会多算），只能用拼凑法（类似 LCA 跳），或者前缀和。
+      - ST 表不支持修改！如果有修改，请出门左转找线段树。
 
    4. 初始值的设定：
       - 求路径最小值 (min)，ans 初始化为 INF。
       - 求路径最大值 (max)，ans 初始化为 -INF 或 0。
       - 根节点的 min_w[0][root] 通常设为 INF (因为它没有父亲边)。
 
-   5. 拼凑思想：
-      - 查询时，不是直接找 fa[k][u]，而是像把整数转二进制一样。
-      - 比如要走 13 步：13 = 8 + 4 + 1。
-      - 先跳 2^3，再从新位置跳 2^2，再从新位置跳 2^0。
+   5. 拼凑思想 vs 覆盖思想：
+      - LCA/路径和：不能重叠 -> 二进制拆分 (13 = 8 + 4 + 1)。
+      - RMQ (Max/Min)：可以重叠 -> 两个大区间覆盖。
 */
