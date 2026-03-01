@@ -1,3 +1,8 @@
+//"最大值最小"或"最小值最大"问题
+//"最大值最小"或"最小值最大"问题
+//"最大值最小"或"最小值最大"问题
+//重要的事情说三遍
+
 #include <vector>
 #include <cstring> // memset头文件
 using namespace std;
