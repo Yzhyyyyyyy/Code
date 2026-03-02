@@ -1,381 +1,164 @@
 // ==================================================================================
-//                            倍增优化 DP (Doubling DP) 终极笔记
+//                        数位 DP (Digit DP) 核心笔记
 // ==================================================================================
-// 核心哲学：不要一步一步走，要 1, 2, 4, 8... 这样跳着走。
-// 既然 2^j = 2^{j-1} + 2^{j-1}，那么跳 2^j 步 等于 连续跳两次 2^{j-1} 步。
+// 核心哲学：不要一个一个枚举，按"位"来统计，用 DP 记录已有的约束状态。
+// 如果题目是 "统计 [1, N] 中满足条件的数有多少"，那就拆位做 DP。
 
 // ==================== 1. 核心定义与适用场景 ====================
 // 适用范围：
-//   1. 状态转移图是静态的（或者是树形结构）。
-//   2. 步数非常大（比如 10^9 步），或者需要快速查询路径信息。
-//   3. 满足结合律：从 A 走到 B，再从 B 走到 C，可以合并为 A 走到 C (如 min, max, sum)。
+//   1. 统计 [L, R] 中满足某种数字条件的整数个数。
+//   2. 条件与数字的"每一位"有关（如：不含某个数字、相邻位不同、数字和为某值）。
+//   3. 数据范围很大（N 可达 10^18），暴力枚举不可行。
 
-// 核心状态 (根据你的习惯，层数 i 放第一维)：
-//   fa[i][u] -> 从 u 出发，往上跳了 2^i 步到达的祖先/位置。
-//   val[i][u] -> 从 u 出发，往上跳了 2^i 步路径上的统计值（最小值/最大值/和）。
+// 核心思想：
+//   - 暴力：枚举 1 ~ N 的每个数，逐一判断。-> O(N) 必超时
+//   - 数位 DP：把数字按位拆开，从高位到低位逐位填，
+//              用 DP 记录"当前填到第几位、有哪些约束"。-> O(位数 * 状态数)
 
-// 状态转移方程（通用）：
-//   fa[i][u] = fa[i-1][ fa[i-1][u] ]
-//   val[i][u] = op( val[i-1][u], val[i-1][ fa[i-1][u] ] )
-//   解释：跳 2^i 步 = 先跳 2^{i-1} 到达中转点 temp，再从 temp 跳 2^{i-1} 步。
+// 核心技巧：前缀转化
+//   [L, R] 的答案 = f(R) - f(L-1)
+//   只需要写一个 f(N) = 统计 [0, N] 中满足条件的数的个数。
 
-// ==================== 2. 模型一：图上的快速幂 (P1613 跑路) ====================
-// 题目大意：每 1 秒可以移动 2^k 个单位距离。求从 A 到 B 的最短时间。
-// 难点：把“距离”转化为“连通性”。
-// 思路：预处理出所有距离为 2^k 的两点，在它们之间连一条权值为 1 的边，跑 BFS/Floyd。
+// ==================== 2. 通用模板 ====================
+
+// -------------------- 状态设计 --------------------
+// dp[pos][state][tight][started]
+//   pos     : 当前填到第几位（从高位到低位）
+//   state   : 题目要求的核心状态（如数字和、上一位的值等）
+//   tight   : 是否还在上界的约束下（true = 当前位不能超过 N 的对应位）
+//   started : 是否已经填了非零位（处理前导零问题）
+
+// -------------------- 记忆化搜索写法（推荐）--------------------
+// 绝大多数数位 DP 用记忆化搜索写，比递推清晰很多。
 
 #include <bits/stdc++.h>
 using namespace std;
 
-// g[k][i][j] 表示：从 i 到 j 是否存在一条长度为 2^k 的路径
-// 你的习惯：层数 k 放第一维
-bool g[65][55][55]; 
-int dist[55][55];   // 最终的最短路图
-int n_run, m_run;
+int digits[20];          // 存储 N 的每一位
+int memo[20][STATE_MAX]; // 记忆化数组，tight=true 时不能缓存！
 
-void solve_running() {
-    memset(dist, 0x3f, sizeof(dist));
-    
-    // 1. 初始化：读入边，距离为 2^0 = 1
-    // for (edges) { g[0][u][v] = true; dist[u][v] = 1; }
+// pos   : 当前位
+// state : 题目核心状态
+// tight : 是否贴着上界
+// started : 是否已经开始（处理前导零）
+int dfs(int pos, int state, bool tight, bool started) {
+    // 边界：所有位填完了
+    if (pos < 0) {
+        return started ? (state 满足条件 ? 1 : 0) : 0;
+    }
 
-    // 2. 倍增预处理连通性 (类似 Floyd)
-    // 注意：k (幂次) 必须在最外层！
-    for (int k = 1; k <= 64; k++) { 
-        for (int i = 1; i <= n_run; i++) {
-            for (int t = 1; t <= n_run; t++) { // 中转点
-                for (int j = 1; j <= n_run; j++) {
-                    // 如果 i->t 有 2^{k-1} 且 t->j 有 2^{k-1}
-                    // 那么 i->j 就有 2^k
-                    if (g[k-1][i][t] && g[k-1][t][j]) {
-                        g[k][i][j] = true;
-                        dist[i][j] = 1; // 关键：题目说跑 2^k 距离只需要 1 秒
-                    }
-                }
-            }
+    // 记忆化：只有 tight=false 时才能缓存
+    // （tight=true 时上界不同，不能复用）
+    if (!tight && memo[pos][state] != -1)
+        return memo[pos][state];
+
+    int limit = tight ? digits[pos] : 9; // 当前位最大能填几
+    int res = 0;
+
+    for (int d = 0; d <= limit; d++) {
+        bool new_tight   = tight && (d == limit);
+        bool new_started = started || (d != 0);
+        int  new_state   = 更新状态(state, d, new_started);
+
+        res += dfs(pos - 1, new_state, new_tight, new_started);
+    }
+
+    if (!tight) memo[pos][state] = res;
+    return res;
+}
+
+long long f(long long N) {
+    int len = 0;
+    while (N > 0) {
+        digits[len++] = N % 10;
+        N /= 10;
+    }
+    // digits[len-1] 是最高位，digits[0] 是最低位
+    memset(memo, -1, sizeof(memo));
+    return dfs(len - 1, 初始状态, true, false);
+}
+
+long long solve(long long L, long long R) {
+    return f(R) - f(L - 1);
+}
+
+// ==================== 3. 经典例题：Windy 数 (P2657) ====================
+// 题意：统计 [L, R] 中，相邻两位之差的绝对值 >= 2 的整数个数。
+// 状态：上一位填了什么数字（用于判断差值）
+
+int memo_windy[12][10]; // memo[pos][last_digit]
+
+int dfs_windy(int pos, int last, bool tight, bool started) {
+    if (pos < 0) return 1; // 填完了，合法
+
+    if (!tight && started && memo_windy[pos][last] != -1)
+        return memo_windy[pos][last];
+
+    int limit = tight ? digits[pos] : 9;
+    int res = 0;
+
+    for (int d = 0; d <= limit; d++) {
+        // 如果已经开始填数，检查相邻差
+        if (started && abs(d - last) < 2) continue; // 不合法，跳过
+
+        res += dfs_windy(pos - 1, d, tight && (d == limit), started || d != 0);
+    }
+
+    if (!tight && started) memo_windy[pos][last] = res;
+    return res;
+}
+
+// ==================== 4. 经典例题：数字计数 (P2602) ====================
+// 题意：统计 [L, R] 中，数字 0~9 各出现了多少次。
+// 状态：当前统计的目标数字 x，以及已经出现了多少次
+
+// 对每个数字 x 分别跑一次数位 DP
+// state = 数字 x 出现的次数
+
+long long memo_count[13][13]; // memo[pos][cnt]
+
+long long dfs_count(int pos, int cnt, int x, bool tight, bool started) {
+    if (pos < 0) return cnt; // 返回出现次数，不是返回 0/1
+
+    if (!tight && started && memo_count[pos][cnt] != -1)
+        return memo_count[pos][cnt];
+
+    int limit = tight ? digits[pos] : 9;
+    long long res = 0;
+
+    for (int d = 0; d <= limit; d++) {
+        int new_cnt = cnt;
+        if (started || d != 0) { // 排除前导零
+            if (d == x) new_cnt++;
         }
+        res += dfs_count(pos - 1, new_cnt, x, tight && (d == limit), started || d != 0);
     }
 
-    // 3. 跑一遍 Floyd 或 BFS 求最短路
-    // ... 标准 Floyd 代码 ...
+    if (!tight && started) memo_count[pos][cnt] = res;
+    return res;
 }
 
-// ==================== 3. 模型二：树上倍增 & LCA (基础) ====================
-// 这是倍增 DP 的基石。
-// fa[i][u] 表示 u 的第 2^i 个祖先。
-
-const int MAXN = 500005; // 记得开够大！
-vector<int> boss[MAXN];
-int fa[32][MAXN]; // 你的习惯：层数在前
-int depth[MAXN];
-
-void dfs_lca(int from, int father, int deep) {
-    fa[0][from] = father; // 2^0 = 1代祖先就是父节点
-    depth[from] = deep;
-    
-    for (int i : boss[from]) {
-        if (i != father) {
-            dfs_lca(i, from, deep + 1);
-        }
-    }
-}
-
-// 预处理倍增数组
-void init_lca(int n) {
-    // 外层循环必须是层数 i
-    for (int i = 1; i < 32; i++) {
-        for (int j = 1; j <= n; j++) {
-            // 核心转移：我的 2^i 祖先 = 我的 2^{i-1} 祖先的 2^{i-1} 祖先
-            fa[i][j] = fa[i-1][ fa[i-1][j] ];
-        }
-    }
-}
-
-// LCA 查询 (你的 gap 写法)
-int lca(int x, int y) {
-    if (depth[x] < depth[y]) swap(x, y); // 保证 x 深
-    
-    int gap = depth[x] - depth[y];
-    
-    // 1. 让 x 跳到和 y 同一层
-    if (gap > 0) {
-        for (int i = 31; i >= 0; i--) {
-            if (((gap >> i) & 1) == 1)
-                x = fa[i][x];
-        }
-    }
-
-    if (x == y) return x;
-
-    // 2. 一起往上跳
-    for (int i = 31; i >= 0; i--) {
-        if (fa[i][x] != fa[i][y]) {
-            x = fa[i][x];
-            y = fa[i][y];
-        }
-    }
-    return fa[0][x];
-}
-
-// ==================== 4. 模型三：最大生成树 + LCA (瓶颈路问题) ====================
-// 典型题目：NOIP 2013 货车运输 / P1967
-// 题目描述：
-//    给定一张带权无向图，有 n 个点 m 条边。
-//    多次询问 (x, y)，求 x 到 y 的所有路径中，"路径上最小边权" 最大是多少？
-//    (即：也就是问这辆车最多能载多重的东西，能通过 x 到 y)
-
-// -------------------- 核心思想解析 (你的顿悟) --------------------
-
-// Q1: 为什么要用 DSU (并查集)？
-// A:  DSU 是"破环成树"的神器。
-//     原图充满了环，路径不唯一。Kruskal 算法配合 DSU，充当了"守门员"：
-//     - 如果两个点已经在同一个帮派 (find(u)==find(v))，再连线就会形成环 -> 扔掉！
-//     - 只有连接两个孤立帮派的边 -> 保留！
-//     结果：一张乱糟糟的图被剪裁成了一棵树（或森林），路径变得唯一了。
-
-// Q2: 为什么要排序？逻辑是什么？
-// A:  排序是为了"贪心"，"先下手为强"。
-//     - 求最大载重 (MaxST)：我们希望路越宽越好。
-//       所以 cmp 函数用 (a.w > b.w)，把宽路排前面。
-//       DSU 会优先选取宽路连接点，只有宽路连不通时，才被迫选窄路。
-//     - 求最小代价 (MST)：我们希望路越便宜越好。
-//       所以 cmp 函数用 (a.w < b.w)，把便宜路排前面。
-//     * 扔掉的边不可惜吗？不可惜！因为对于我们的目标来说，它们要么是多余的环，要么是更差的选择。
-
-// Q3: 树的方向问题？
-// A:  - 物理上：树是无向的，兄弟之间平等连接 (Kruskal 连出来的结果)。
-//     - 逻辑上：为了跑 LCA，必须人为指定一个根 (如 dfs(1, 0))。
-//       这就好比把一串珠子拎起来，虽然连接没变，但产生了"父子"和"深度"的概念，
-//       这样我们才能定义"往上跳"。
-
-// -------------------- 代码实现模板 --------------------
-
-// 1. 存边结构体 (用于 Kruskal 排序)
-struct RawEdge { int u, v, w; };
-vector<RawEdge> all_edges;
-
-// 2. 树的邻接表
-struct Edge { int to, w; };
-vector<Edge> tree[MAXN]; // 注意：MAXN 要够大
-
-// 3. 倍增数组
-int min_w[20][MAXN]; // 路径上的最小值 (瓶颈)
-int fa_dsu[MAXN];    // 并查集数组
-const int INF = 0x3f3f3f3f;
-
-// --- Step 1: Kruskal 建最大生成树 ---
-bool cmp(RawEdge a, RawEdge b) {
-    return a.w > b.w; // 【关键】大的排前面！
-}
-
-int find(int x) {
-    return fa_dsu[x] == x ? x : fa_dsu[x] = find(fa_dsu[x]);
-}
-
-void kruskal(int n) {
-    sort(all_edges.begin(), all_edges.end(), cmp);
-    for(int i=1; i<=n; i++) fa_dsu[i] = i;
-    
-    for (auto e : all_edges) {
-        int u = find(e.u), v = find(e.v);
-        if (u != v) {
-            fa_dsu[u] = v;
-            // 建树是无向的，双向加边
-            tree[e.u].push_back({e.v, e.w});
-            tree[e.v].push_back({e.u, e.w});
-        }
-    }
-}
-
-// --- Step 2: DFS 预处理倍增 ---
-void dfs_maxst(int u, int father, int d, int w) {
-    depth[u] = d;
-    fa[0][u] = father;
-    min_w[0][u] = w; // 向上跳一步的瓶颈就是这条边的权值
-    
-    for (int i = 1; i < 20; i++) {
-        fa[i][u] = fa[i-1][ fa[i-1][u] ];
-        // 状态转移：路径最小值 = min(下半段最小, 上半段最小)
-        min_w[i][u] = min(min_w[i-1][u], min_w[i-1][ fa[i-1][u] ]);
-    }
-    
-    for (auto e : tree[u]) {
-        if (e.to != father) dfs_maxst(e.to, u, d + 1, e.w);
-    }
-}
-
-// --- Step 3: LCA 查询瓶颈 ---
-int query(int x, int y) {
-    // 必须先判断连通性，如果不连通直接返回 -1
-    if (find(x) != find(y)) return -1; 
-    
-    int ans = INF; // 求最小值，初始化为无穷大
-    if (depth[x] < depth[y]) swap(x, y);
-    
-    // 1. x 向上跳到同一深度
-    for (int i = 19; i >= 0; i--) {
-        if (depth[fa[i][x]] >= depth[y]) {
-            ans = min(ans, min_w[i][x]); // 更新路上的瓶颈
-            x = fa[i][x];
-        }
-    }
-    
-    if (x == y) return ans;
-    
-    // 2. 一起向上跳
-    for (int i = 19; i >= 0; i--) {
-        if (fa[i][x] != fa[i][y]) {
-            ans = min(ans, min_w[i][x]);
-            ans = min(ans, min_w[i][y]);
-            x = fa[i][x];
-            y = fa[i][y];
-        }
-    }
-    
-    // 3. 最后一步到 LCA
-    ans = min(ans, min_w[0][x]);
-    ans = min(ans, min_w[0][y]);
-    
-    return ans;
-}
-
-// ==================== 5. 模型四：ST 表 (RMQ 问题) ====================
-// 典型题目：P3865 【模板】ST 表
-// 适用场景：静态数组区间最值查询 (Max/Min/GCD)。
-//原理：区间上的最值，即使有重叠部分也没有问题
-// 核心差异：LCA 是“拼凑”（二进制拆分），ST 表是“覆盖”（允许重叠）。
-// 复杂度：预处理 O(N log N)，查询 O(1)。
-
-const int ST_LOG = 21;
-int st[ST_LOG][MAXN]; // st[i][j] 表示从 j 开始长度为 2^i 的最大值
-int Log[MAXN];        // 预处理 log2 值
-
-void init_st(int n) {
-    // 1. 预处理 Log 数组 (递推法)
-    // Log[i] = floor(log2(i))
-    Log[1] = 0;
-    Log[2] = 1;
-    for (int i = 3; i <= n; i++) {
-        Log[i] = Log[i / 2] + 1;
-    }
-
-    // 2. 倍增构建 ST 表
-    // 外层循环枚举长度指数 i (从 1 到 Log[n])
-    for (int i = 1; i <= Log[n]; i++) {
-        // 内层循环枚举起点 j
-        // 边界条件：j + 2^i - 1 <= n
-        for (int j = 1; j + (1 << i) - 1 <= n; j++) {
-            // 状态转移：max(左半边, 右半边)
-            st[i][j] = max(st[i-1][j], st[i-1][j + (1 << (i-1))]);
-        }
-    }
-}
-
-// O(1) 查询
-int query_st(int L, int R) {
-    int k = Log[R - L + 1]; // 找到最大的幂次 k
-    // 核心：用两个长度为 2^k 的区间覆盖 [L, R]
-    // max(左边 2^k, 右边 2^k)
-    return max(st[k][L], st[k][R - (1 << k) + 1]);
-}
-
-// ==================== 6. 模型五：树上差分 (Tree Difference) ====================
-// 典型题目：P3128 [USACO15DEC] Max Flow P
-// 适用场景：
-//    - 离线操作。
-//    - 对多条路径 (u, v) 进行“批量修改”（如路径上所有点/边权值 +1）。
-//    - 最后只查询一次所有节点/边的最终权值。
-// 核心思想：利用差分思想，把“路径修改”转化为“端点标记”，最后 DFS 回溯求和。
-
-// -------------------- 核心原理图解 --------------------
-
+// ==================== 5. 避坑指南 (Blood & Tears) ====================
 /*
-  【差分数组 diff[u] 定义】
-  diff[u] 是一个“流量源头”。
-  diff[u]++ 意味着：从 u 开始，一直到 根节点(Root) 的整条链上，权值都会 +1。
-  (因为 val[u] = diff[u] + sum(子节点val)，子节点的增量会传给父亲)
+   1. tight=true 时绝对不能记忆化！
+      - 因为 tight=true 时，当前位的上界是 digits[pos]，不同数字 N 会不同。
+      - 只有 tight=false 时，状态才是"自由的"，可以复用。
 
-  【点差分 (修改路径上的点)】
-  目标：u -> v 路径上的点权 +1。
-  操作：diff[u]++, diff[v]++, diff[lca]--, diff[fa[lca]]--
-  
-  图解逻辑：
-       F (fa[lca])  <-- 收到 LCA 的 1，自己 diff 减 1 => 1 + (-1) = 0 (截断！F 不在路径上)
-       |
-      LCA           <-- 收到 u, v 的 1+1=2，自己 diff 减 1 => 2 + (-1) = 1 (保留！LCA 在路径上)
-     /   \
-    u     v         <-- 发起 +1
-  
-  【边差分 (修改路径上的边)】
-  约定：点 u 的权值代表它连向父亲的那条边 (u -> fa[u])。
-  目标：u -> v 路径上的边权 +1。
-  操作：diff[u]++, diff[v]++, diff[lca] -= 2
-  
-  图解逻辑：
-       Root
-        |
-        | (边 X：这是 LCA 代表的边) <-- 必须为 0！
-        |
-       LCA  <-- 路径在这里汇合拐弯，并没有穿过 LCA 往上走！
-      /   \     收到 u, v 的 1+1=2，自己 diff 减 2 => 2 + (-2) = 0 (彻底截断！)
-     /     \
-    A       B
-   /         \
-  u           v
-*/
+   2. 前导零的处理：
+      - started=false 表示还没填过非零位，这时候填 0 不算"真正的 0"。
+      - 比如数字 007，前两个 0 是前导零，不算在数字里。
+      - 很多状态在 started=false 时要特殊处理（如 last_digit 不能约束第一位）。
 
-int diff[MAXN]; // 差分数组
-int ans_diff = 0;
+   3. digits 数组的方向：
+      - 建议存成 digits[0] = 最低位，digits[len-1] = 最高位。
+      - dfs 从 pos=len-1 开始往下填，pos=0 时填最低位。
+      - 方向搞反了，结果就全错了。
 
-// 1. 读入修改操作 (以点差分为例)
-void add_path_point(int u, int v) {
-    int l = lca(u, v);
-    diff[u]++;
-    diff[v]++;
-    diff[l]--;
-    if (fa[0][l] != 0) diff[fa[0][l]]--; // 注意判根
-}
+   4. 答案类型：
+      - 统计"个数"时返回 int/long long。
+      - 统计"出现次数之和"时返回 long long（N 可达 10^18，次数也很大）。
 
-// 2. 读入修改操作 (以边差分为例)
-void add_path_edge(int u, int v) {
-    int l = lca(u, v);
-    diff[u]++;
-    diff[v]++;
-    diff[l] -= 2;
-}
-
-// 3. DFS 回溯统计最终结果
-void dfs_sum(int u, int f) {
-    for (int v : boss[u]) { // 遍历邻接表
-        if (v != f) {
-            dfs_sum(v, u);
-            // 核心：子节点的流量汇聚给父亲
-            diff[u] += diff[v];
-        }
-    }
-    // 此时 diff[u] 就是点 u (或 u->fa[u] 边) 的最终权值
-    ans_diff = max(ans_diff, diff[u]);
-}
-
-// ==================== 7. 避坑指南 (Blood & Tears) ====================
-/*
-   1. 循环顺序至关重要 (死记硬背)：
-      - 倍增预处理时：外层循环必须是 幂次 (i)，内层是 节点 (u)。
-      - 你的写法：for(int i=1; i<20; i++) for(int u=1; u<=n; u++)。
-      - 错误写法：反过来写会导致 fa[i][u] 用到未计算的 fa[i-1][...]。
-   
-   2. 数组维度与大小：
-      - 习惯：fa[20][MAXN] (层数在前)。
-      - 致命坑点：MAXN 一定要看题目范围！比如 N=500,000 时，开 50005 会 RE。
-      - ST 表的 Log 层数：2^20 ≈ 10^6，通常开 21 就够了。
-
-   3. ST 表的特殊性：
-      - 只有 Max/Min/GCD 这种“可重复贡献”的操作才能用 O(1) 覆盖法。
-      - 如果是求 Sum (区间和)，ST 表无法 O(1) 查询（重叠部分会多算），只能用拼凑法（类似 LCA 跳），或者前缀和。
-      - ST 表不支持修改！如果有修改，请出门左转找线段树。
-
-   4. 树上差分的边界：
-      - 点差分：lca 减一次，fa[lca] 减一次。记得判 fa[lca] 是否存在（根节点的父亲是 0）。
-      - 边差分：lca 减两次。因为 lca 代表的边不在路径上。
-      - 统计结果：一定要跑一遍 dfs_sum，不能直接用 diff 数组输出。
+   5. f(L-1) 的边界：
+      - 当 L=0 时，f(L-1) = f(-1)，要特判返回 0。
+      - 或者直接让 f(0) = 0（0 本身通常不满足条件）。
 */
