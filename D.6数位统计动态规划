@@ -11,15 +11,10 @@
 //    - 你的误区：你写了 if (i != position)。position 是"第几位"，i 是"填的数字"。
 //      拿"下标"去和"数值"比较，逻辑是完全错误的！
 //    - 正确逻辑：tight 只看 **当前填的数字 i** 是否贴着 **原数字 N 对应位的数值 digits[pos]**。
-//      如果原数字是 356，当前填百位：
-//      填 0~2 (比3小) -> 解除限制 (tight=false)
-//      填 3   (等于3) -> 保持限制 (tight=true)
-//      填 4+  (比3大) -> 不允许
 
 // 2. 记忆化的条件 —— 别什么都存！
 //    - 你的误区：dp 数组开了 20 亿；或者不管 tight 是啥都存进 dp。
 //    - 正确逻辑：只有 **!tight (无限制)** 且 **!lead (非前导零)** 时，状态才是通用的，才能存/读 dp。
-//      如果 tight=true，说明这一位的上限取决于原数字 N，不能复用给别的数字。
 
 // 3. 递归的尽头 —— 别忘了回家！
 //    - 你的误区：忘了写 if (pos < 0)，导致无限递归或越界。
@@ -68,36 +63,27 @@ int dfs_windy(int pos, int last, bool tight, bool lead) {
 
     // 2. 记忆化读取
     // 只有在 "没有限制" 且 "不是前导零" 的情况下才能复用结果
-    // (tight=true 时结果依赖于原数字 N，不能复用)
     if (!tight && !lead && last != -1 && dp[pos][last] != -1) {
         return dp[pos][last];
     }
 
     // 3. 确定当前位的枚举范围
-    // 如果 tight 为 true，只能填到 digits[pos]；否则可以填到 9
     int limit = tight ? digits[pos] : 9;
     int res = 0;
 
     for (int i = 0; i <= limit; i++) {
         // 4. 判断是否合法 (Windy 数定义)
-        // 只有当 "不是前导零" 时，才需要检查 abs(i - last) >= 2
-        // 如果 lead=true (还在前导零)，填什么都行(通常是0)，或者第一位有效数字填什么都行
         if (!lead && abs(i - last) < 2) continue;
 
         // 5. 状态转移
-        // new_lead: 如果当前是前导零且填了0，则继续是前导零
-        // new_tight: 当前受限 且 填到了上限，下一位才受限
         bool new_lead = lead && (i == 0);
         bool new_tight = tight && (i == limit);
-        
-        // new_last: 如果是前导零状态，传 -1 (或者随便传，反正下一层会看 lead)；否则传 i
         int new_last = new_lead ? -1 : i;
 
         res += dfs_windy(pos - 1, new_last, new_tight, new_lead);
     }
 
     // 6. 记忆化存储
-    // 同样，只有无限制且非前导零时才存
     if (!tight && !lead && last != -1) {
         dp[pos][last] = res;
     }
@@ -105,50 +91,111 @@ int dfs_windy(int pos, int last, bool tight, bool lead) {
     return res;
 }
 
-int solve(int x) {
+int solve_windy(int x) {
     int len = 0;
     while (x) {
         digits[len++] = x % 10;
         x /= 10;
     }
-    // 初始化 memo 为 -1
     memset(dp, -1, sizeof(dp));
-    
-    // 从最高位开始搜，初始 tight=true, lead=true, last=-1
     return dfs_windy(len - 1, -1, true, true);
 }
-
-// 主函数调用示例： cout << solve(b) - solve(a - 1) << endl;
 
 
 // ==================== 4. 经典例题：数字计数 (P2602) ====================
 // 题意：统计 [L, R] 中，数字 0~9 各出现了多少次。
-// 状态：当前统计的目标数字 x，以及已经出现了多少次
 
-// 对每个数字 x 分别跑一次数位 DP
-// state = 数字 x 出现的次数
+// ------------------------------------------------------------------
+// 🚨【你的错误纠察队】(针对你刚才提交的代码)
+// 1. 绝对禁止在循环里写 continue：
+//    - 错误：if (i != target) continue;
+//    - 后果：你把不含 target 的数字全扔了！但那些数字也存在啊！
+//    - 修正：不管 i 是几都要递归，只是 cnt 不加而已。
+//
+// 2. 返回值大不同：
+//    - Windy数：问"有多少个数"，返回 1。
+//    - 数字计数：问"出现了几次"，返回 cnt (累计值)。
+//
+// 3. DP 状态必须包含变化的量：
+//    - 错误：dp[pos][target] (忽略了 cnt)
+//    - 后果：cnt=1 和 cnt=5 的情况混在一起了。
+//    - 修正：dp[pos][cnt]
+// ------------------------------------------------------------------
 
-long long memo_count[13][13]; // memo[pos][cnt]
+long long memo_count[15][15]; // dp[pos][cnt]
+int a[15];                    // 存储数字 N
+int target;                   // 当前正在统计哪个数字
 
-long long dfs_count(int pos, int cnt, int x, bool tight, bool started) {
-    if (pos < 0) return cnt; // 返回出现次数，不是返回 0/1
+// pos:   当前位
+// cnt:   之前位中，target 已经出现了几次
+// tight: 限制
+// lead:  前导零
+long long dfs_count(int pos, int cnt, bool tight, bool lead) {
+    // 1. 递归终点：填完了
+    // 返回 cnt，意味着：这一条路径产生了一个合法的数，
+    // 这个数里 target 出现了 cnt 次，所以对总答案贡献 cnt。
+    if (pos < 0) return cnt;
 
-    if (!tight && started && memo_count[pos][cnt] != -1)
+    // 2. 记忆化
+    // 只有无限制且非前导零时，dp[pos][cnt] 才是通用的
+    if (!tight && !lead && memo_count[pos][cnt] != -1)
         return memo_count[pos][cnt];
 
-    int limit = tight ? digits[pos] : 9;
+    int limit = tight ? a[pos] : 9;
     long long res = 0;
 
-    for (int d = 0; d <= limit; d++) {
+    for (int i = 0; i <= limit; i++) {
+        // 3. 计算新的 cnt
+        // 关键逻辑：
+        // 如果当前位填的数字 i 等于 target，cnt 要 +1。
+        // 但是！如果处于前导零状态 (lead=true) 且填的是 0 (i=0)，
+        // 这个 0 是无效的占位符，不能算作 target 出现了一次。
+        
         int new_cnt = cnt;
-        if (started || d != 0) { // 排除前导零
-            if (d == x) new_cnt++;
+        if (i == target) {
+            // 如果不是前导零状态，或者填的不是0 (即非前导零的有效数字)
+            if (!lead || i != 0) { 
+                new_cnt++;
+            }
         }
-        res += dfs_count(pos - 1, new_cnt, x, tight && (d == limit), started || d != 0);
+
+        // 4. 状态更新
+        bool new_lead = lead && (i == 0);
+        bool new_tight = tight && (i == limit);
+
+        res += dfs_count(pos - 1, new_cnt, new_tight, new_lead);
     }
 
-    if (!tight && started) memo_count[pos][cnt] = res;
+    // 5. 记录
+    if (!tight && !lead) memo_count[pos][cnt] = res;
     return res;
+}
+
+long long solve_count(long long x, int d) {
+    int len = 0;
+    while (x) {
+        a[len++] = x % 10;
+        x /= 10;
+    }
+    target = d;
+    memset(memo_count, -1, sizeof(memo_count));
+    // 从最高位开始，初始 cnt=0
+    return dfs_count(len - 1, 0, true, true);
+}
+
+// 注意：这里为了笔记完整，写了一个 main 函数包含数字计数的调用逻辑
+// 实际提交时，请只保留一个 main
+int main() {
+    long long l, r;
+    // 如果是提交 P2602，解开下面的注释
+    /*
+    cin >> l >> r;
+    for (int i = 0; i <= 9; i++) {
+        cout << solve_count(r, i) - solve_count(l - 1, i) << " ";
+    }
+    cout << endl;
+    */
+    return 0;
 }
 
 // ==================== 5. 避坑指南 (Blood & Tears) ====================
@@ -158,9 +205,9 @@ long long dfs_count(int pos, int cnt, int x, bool tight, bool started) {
       - 只有 tight=false 时，状态才是"自由的"，可以复用。
 
    2. 前导零的处理：
-      - started=false (即 lead=true) 表示还没填过非零位，这时候填 0 不算"真正的 0"。
+      - lead=true 表示还没填过非零位，这时候填 0 不算"真正的 0"。
       - 比如数字 007，前两个 0 是前导零，不算在数字里。
-      - 很多状态在 started=false 时要特殊处理（如 last_digit 不能约束第一位）。
+      - 很多状态在 lead=true 时要特殊处理（如 last_digit 不能约束第一位）。
 
    3. digits 数组的方向：
       - 建议存成 digits[0] = 最低位，digits[len-1] = 最高位。
