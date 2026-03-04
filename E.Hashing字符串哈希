@@ -1,5 +1,5 @@
 // ==================================================================================
-//                            字符串哈希 (String Hashing) 笔记
+//                            字符串哈希 (String Hashing) 终极笔记
 // ==================================================================================
 // 核心哲学：把“复杂且庞大”的字符串，映射成一个“简单且唯一”的整数。
 // 既然比较两个长字符串需要 O(L) 的时间，那比较两个整数只需要 O(1)。
@@ -8,7 +8,7 @@
 // 适用范围：
 //   1. 快速判断两个字符串是否相等 (O(1))。
 //   2. 快速判断两个子串是否相等。
-//   3. 字符串匹配 (KMP 的暴力替代品)、最长回文子串、最长公共子串。
+//   3. 最长公共子串 (LCS)、最长回文子串 (结合二分答案)。
 // 核心思想 (多项式滚动哈希 Polynomial Rolling Hash)：
 //   把字符串看作一个 P 进制数。
 //   Hash(S) = (S[1]*P^{n-1} + S[2]*P^{n-2} + ... + S[n]*P^0) % M
@@ -17,76 +17,113 @@
 //   M (模数): 
 //     - 方案 A: 2^64 (利用 unsigned long long 自然溢出，省去取模操作，最快)。
 //     - 方案 B: 1e9+7 或 1e9+9 (双哈希常用)。
-// ==================== 2. 模型一：自然溢出法 (单哈希) ====================
-// 题目：P3370 【模板】字符串哈希
-// 核心：利用 unsigned long long (ULL) 的范围 [0, 2^64-1]。
-// 当计算结果超过最大值时，会自动对 2^64 取模。
-// -------------------- 代码实现模板 --------------------
+
 #include <bits/stdc++.h>
 using namespace std;
+
+// ==================== 2. 模型一：自然溢出法 (单哈希标准模板) ====================
+// 核心：利用 unsigned long long (ULL) 的范围 [0, 2^64-1]。
+// 当计算结果超过最大值时，会自动对 2^64 取模。
+
 typedef unsigned long long ULL; // 【关键】自动溢出 = 自动取模
 
-const int MAXN = 10005;
-const int P = 131; // 进制数，比字符集大小要大，通常选质数
+// 【避坑】数组大小必须开够！通常 N=100000，开 100 必死。
+const int N = 100010; 
+const int P = 131; 
 
-// h[i] 表示前缀 s[1...i] 的哈希值
-// p[i] 表示 P 的 i 次方 (P^i)
-ULL h[MAXN], p[MAXN]; 
-char s[MAXN];
+ULL h[N], p[N]; 
+char s[N]; // 或者 string s
 
 // 1. 预处理哈希值
-void init_hash(int n) {
+// 建议：传入的字符串下标最好已经处理过（从 1 开始）
+void init_hash(string& str, ULL h[], int n) {
     p[0] = 1;
     h[0] = 0;
     for (int i = 1; i <= n; i++) {
-        // 预处理 P 的幂次
         p[i] = p[i-1] * P;
-        // 核心转移：前缀哈希 = 前一位哈希 * P + 当前字符
-        // 类似于十进制： "12" -> "123"  =>  12 * 10 + 3
-        h[i] = h[i-1] * P + s[i]; 
+        h[i] = h[i-1] * P + str[i]; 
     }
 }
 
 // 2. O(1) 查询任意子串 s[l...r] 的哈希值
-// 公式推导：
-//   h[r] = s[1]*P^{r-1} + ... + s[l]*P^{r-l} + ... + s[r]*P^0
-//   h[l-1] = s[1]*P^{l-2} + ... + s[l-1]*P^0
-//   我们想消去 s[1]...s[l-1] 的部分，需要把 h[l-1] 左移 (r-l+1) 位，即乘以 P^{r-l+1}
-//   对齐后相减，剩下的就是 s[l...r] 的哈希值。
-ULL get_hash(int l, int r) {
-    return h[r] - h[l-1] * p[r-l+1];
+// 公式：Hash(l, r) = h[r] - h[l-1] * P^(len)
+ULL get_hash(ULL h[], int l, int r) {
+    return h[r] - h[l-1] * p[r - l + 1];
 }
 
-// 3. 解决 P3370 (统计不同字符串个数)
-void solve_P3370() {
-    int N; cin >> N;
+// ==================== 3. 模型二：哈希 + 二分答案 (最长公共子串) ====================
+// 场景：求两个字符串 A 和 B 的最长公共子串长度。
+// 核心：二分长度 mid，检查是否存在长度为 mid 的公共子串。
+// 复杂度：O(N log^2 N) 或 O(N log N) 取决于实现。
+
+string A, B;
+ULL hA[N], hB[N];
+
+// Check 函数：判断 A 和 B 是否有长度为 len 的公共子串
+bool check(int len, int n1, int n2) {
     vector<ULL> v;
-    for(int i=0; i<N; i++) {
-        cin >> (s+1); // 从下标 1 开始读入
-        int len = strlen(s+1);
-        init_hash(len);
-        v.push_back(get_hash(1, len));
+    
+    // 1. 把 A 的所有长度为 len 的子串哈希存入 vector
+    for (int i = 1; i + len - 1 <= n1; i++) {
+        v.push_back(get_hash(hA, i, i + len - 1));
     }
-    // 排序 + 去重
+    
+    // 2. 排序 A 的哈希集合 (为了二分查找)
     sort(v.begin(), v.end());
-    int ans = unique(v.begin(), v.end()) - v.begin();
+    
+    // 3. 遍历 B 的所有长度为 len 的子串
+    for (int i = 1; i + len - 1 <= n2; i++) {
+        ULL target = get_hash(hB, i, i + len - 1);
+        
+        // 4. 【关键逻辑】在 A 的集合里找 B 的元素
+        // 使用 binary_search (O(log N)) 快速查找
+        if (binary_search(v.begin(), v.end(), target)) {
+            return true; // 找到了！
+        }
+    }
+    return false;
+}
+
+void solve_LCS() {
+    cin >> A >> B;
+    
+    // 【神技】下标对齐：强行加空格，让有效字符从下标 1 开始
+    // 这样 A[1] 对应 hA[1]，彻底告别 i-1/i+1 的下标地狱
+    A = " " + A;
+    B = " " + B;
+    
+    int n1 = A.length() - 1;
+    int n2 = B.length() - 1;
+    
+    init_hash(A, hA, n1);
+    init_hash(B, hB, n2); // 注意：p 数组只需要初始化一次，或者共用
+    
+    int l = 0, r = min(n1, n2);
+    int ans = 0;
+    
+    while (l <= r) {
+        int mid = l + (r - l) / 2;
+        if (mid == 0) { l = 1; continue; }
+        
+        if (check(mid, n1, n2)) {
+            ans = mid;
+            l = mid + 1; // 可行，尝试更长的
+        } else {
+            r = mid - 1; // 不行，缩短
+        }
+    }
     cout << ans << endl;
 }
-// ==================== 3. 模型二：双哈希 (Double Hash) ====================
-// 题目：P5270 无论怎样神树大人都会删库跑路 (Anti-Hash 测试题)
-// 痛点：单哈希（尤其是自然溢出）容易被出题人“卡”。
-//      出题人可以构造特定的字符串（如 Thue-Morse 序列），使得 hash(A) == hash(B)。
-// 解决方案：用两套不同的 (P, M) 组合计算两个哈希值。
-//      只有当 hash1(A)==hash1(B) 且 hash2(A)==hash2(B) 时，才认为 A==B。
-//      冲突概率从 1/M 降低到 1/(M1 * M2)，几乎不可能冲突。
-// -------------------- 核心逻辑 --------------------
+
+// ==================== 4. 模型三：双哈希 (Double Hash) ====================
+// 痛点：单哈希容易被出题人卡 (如 Thue-Morse 序列)。
+// 方案：用两套 (P, M) 同时计算，只有两个哈希值都相等才算相等。
+
 struct DoubleHash {
     long long h1, h2;
-    // 重载 == 运算符，方便比较
     bool operator==(const DoubleHash &other) const {
         return h1 == other.h1 && h2 == other.h2;
     }
-    // 重载 < 运算符，方便排序或放入 map
     bool operator<(const DoubleHash &other) const {
         if (h1 != other.h1) return h1 < other.h1;
         return h2 < other.h2;
@@ -95,60 +132,37 @@ struct DoubleHash {
 
 const long long M1 = 1e9 + 7, P1 = 131;
 const long long M2 = 1e9 + 9, P2 = 13331;
-long long H1[MAXN], Pow1[MAXN];
-long long H2[MAXN], Pow2[MAXN];
+long long H1[N], Pow1[N], H2[N], Pow2[N];
 
-void init_double(int n) {
-    Pow1[0] = Pow2[0] = 1;
-    for(int i=1; i<=n; i++) {
-        Pow1[i] = (Pow1[i-1] * P1) % M1;
-        Pow2[i] = (Pow2[i-1] * P2) % M2;
-        H1[i] = (H1[i-1] * P1 + s[i]) % M1;
-        H2[i] = (H2[i-1] * P2 + s[i]) % M2;
-    }
-}
-
+// 双哈希获取函数
 DoubleHash get_double_hash(int l, int r) {
-    long long res1 = (H1[r] - H1[l-1] * Pow1[r-l+1] % M1 + M1) % M1; // 注意负数取模
+    // 注意：非自然溢出法，减法后必须 + Mod 再 % Mod，防止负数
+    long long res1 = (H1[r] - H1[l-1] * Pow1[r-l+1] % M1 + M1) % M1;
     long long res2 = (H2[r] - H2[l-1] * Pow2[r-l+1] % M2 + M2) % M2;
     return {res1, res2};
 }
-// ==================== 4. 模型三：哈希的应用与系统设计 ====================
-// 题目：P5537 【XR-3】系统设计
-// 场景：不仅是简单的字符串匹配，而是结合数据结构（线段树/平衡树）维护哈希。
-// 常见操作：
-//   1. 字符串拼接：Hash(A+B) = Hash(A) * P^{len(B)} + Hash(B)
-//   2. 提取公共前缀 (LCP)：二分答案 + 哈希判断。
-//      - 问题：求 S1 和 S2 的最长公共前缀长度。
-//      - 思路：二分长度 len，检查 get_hash(S1, 1, len) == get_hash(S2, 1, len)。
-//      - 复杂度：O(log N)。
-//   3. 允许 k 次失配的匹配：
-//      - 结合二分 + 哈希，跳过相同部分，定位不同字符，计数 k 次。
 
 // ==================== 5. 避坑指南 (Blood & Tears) ====================
 /*
-1. 下标从 1 开始！
-   习惯：字符串数组 s[MAXN] 最好从下标 1 开始存，s[0] 空着。
-   原因：公式 get_hash(l, r) 中需要用到 h[l-1]。如果 l=0，会访问 h[-1] 导致越界。
-   如果非要从 0 开始，代码里全是 if(l==0) 的特判，非常丑陋且容易错。
+1. 数组大小 (RE 之源)
+   错误：int hash[100];
+   修正：const int N = 100010; 必须开得比字符串最大长度大！
 
-2. 负数取模的噩梦 (针对非自然溢出法)
-   公式：h[r] - h[l-1] * p[...]
-   在 C++ 中，(2 - 10) % 7 结果是 -1，而不是我们想要的 6。
-   修正：(a - b) % M  -->  ((a - b) % M + M) % M。
-   一定要加上 + M 再取模！
+2. 数据类型 (WA 之源)
+   错误：int hash[N]; -> 溢出变负数，逻辑崩坏。
+   修正：必须用 unsigned long long (ULL)。
 
-3. 字符集的值
-   s[i] 的值不能为 0。
-   如果 s[i] 映射为 0，那么 "ab" (1, 2) 和 "ab\0" (1, 2, 0) 的哈希值可能无法区分（取决于实现细节）。
-   通常 char 直接转 int 没问题，因为 ASCII 码不为 0。
+3. 下标对齐 (逻辑混乱之源)
+   痛点：string 是 0-based，hash 习惯 1-based。
+   神技：读入后 s = " " + s;
+   这样 s[1] 就是第一个字符，和 hash[1] 完美对应，代码清爽度 +100%。
 
-4. 什么时候用双哈希？
-   - 简单的判重、Codeforces 这种不易被针对的场：单哈希 (unsigned long long) 足够，快且代码短。
-   - 国内 OI 比赛、题目明确暗示“卡哈希”、或者 P5270 这种题目：必须双哈希。
-   - 实在懒得写双哈希？可以试试随机模数或者随机基数 P (srand(time(0)))，让出题人没法提前构造数据。
+4. Check 函数的逻辑错误
+   错误：把 A 和 B 的哈希放在一起排序找相邻相等。
+        (这会把 A 内部的重复子串误判为 A 和 B 的公共子串)
+   修正：A 做字典 (vector + sort)，B 去查字典 (binary_search)。
 
-5. 空间警告
-   不要开太大！long long H[MAXN] 也是占内存的。
-   如果是双哈希，记得数组要开两倍的量，或者用结构体封装。
+5. 负数取模 (针对双哈希/非自然溢出)
+   C++ 中 (-5) % 3 = -2。
+   公式必须写成：((a - b) % M + M) % M。
 */
