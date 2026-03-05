@@ -119,7 +119,7 @@ void solve_LCS() {
 // 痛点：单哈希容易被出题人卡 (如 Thue-Morse 序列)。
 // 方案：用两套 (P, M) 同时计算，只有两个哈希值都相等才算相等。
 
-struct DoubleHash {
+struct DoubleHash {//重载运算符 双等号 小于号
     long long h1, h2;
     bool operator==(const DoubleHash &other) const {
         return h1 == other.h1 && h2 == other.h2;
@@ -142,7 +142,56 @@ DoubleHash get_double_hash(int l, int r) {
     return {res1, res2};
 }
 
-// ==================== 5. 避坑指南 (Blood & Tears) ====================
+// ==================== 5. 模型四：二维哈希 (2D Hashing) ====================
+// 场景：矩阵匹配。例如：在大图 (N*M) 中找小图 (R*C) 出现了几次。
+// 核心：
+//   1. 先对每一行做哈希 (行哈希)。
+//   2. 再对“行哈希值”构成的列做哈希 (列哈希)。
+//   3. 维护两个进制 P (行) 和 Q (列)。
+
+const int P_ROW = 131;   // 行进制
+const int P_COL = 13331; // 列进制 (必须不同)
+ULL h2d[1010][1010];     // 二维哈希数组
+ULL p_row[1010], p_col[1010]; // 预处理幂次
+char mat[1010][1010];    // 存储矩阵
+
+// 初始化二维哈希
+void init_2d_hash(int n, int m) {
+    p_row[0] = 1; p_col[0] = 1;
+    for (int i = 1; i <= max(n, m); i++) {
+        p_row[i] = p_row[i-1] * P_ROW;
+        p_col[i] = p_col[i-1] * P_COL;
+    }
+
+    for (int i = 1; i <= n; i++) {
+        for (int j = 1; j <= m; j++) {
+            // 步骤1：先算行的哈希 (横向)
+            h2d[i][j] = h2d[i][j-1] * P_ROW + mat[i][j];
+        }
+    }
+    
+    for (int i = 1; i <= n; i++) {
+        for (int j = 1; j <= m; j++) {
+            // 步骤2：再叠加列的哈希 (纵向)
+            // 注意：这里是在已有的行哈希基础上，乘列进制
+            h2d[i][j] += h2d[i-1][j] * P_COL;
+        }
+    }
+}
+
+// 查询子矩阵哈希: 左上(x1, y1) -> 右下(x2, y2)
+// 公式记忆：类似二维前缀和，但减去的部分要乘上对应的幂次 (厚度)
+ULL get_sub_hash_2d(int x1, int y1, int x2, int y2) {
+    int len_x = x2 - x1 + 1; // 高度
+    int len_y = y2 - y1 + 1; // 宽度
+    
+    return h2d[x2][y2] 
+         - h2d[x1-1][y2] * p_col[len_x]          // 减上面 (乘列幂)
+         - h2d[x2][y1-1] * p_row[len_y]          // 减左边 (乘行幂)
+         + h2d[x1-1][y1-1] * p_col[len_x] * p_row[len_y]; // 补左上
+}
+
+// ==================== 6. 避坑指南 (Blood & Tears) ====================
 /*
 1. 数组大小 (RE 之源)
    错误：int hash[100];
@@ -165,4 +214,8 @@ DoubleHash get_double_hash(int l, int r) {
 5. 负数取模 (针对双哈希/非自然溢出)
    C++ 中 (-5) % 3 = -2。
    公式必须写成：((a - b) % M + M) % M。
+   
+6. 二维哈希的进制
+   错误：行和列使用相同的 P。
+   修正：行用 131，列用 13331，防止对称矩阵冲突。
 */
