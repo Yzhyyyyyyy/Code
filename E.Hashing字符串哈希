@@ -227,7 +227,7 @@ void get_rooted_hash(int u, int fa) {
         child_hashes.push_back(sub_hash[v]);
     }
     
-    // 【核心】排序！消除子树顺序的影响（这里没有必要存在，不用写）
+    // 【核心】排序！消除子树顺序的影响（这里没有必要存在，如果需要写树的构成，才需要排序以满足要求）
     sort(child_hashes.begin(), child_hashes.end());
     
     // 组合子节点哈希
