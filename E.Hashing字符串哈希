@@ -118,6 +118,7 @@ void solve_LCS() {
 // ==================== 4. 模型三：双哈希 (Double Hash) ====================
 // 痛点：单哈希容易被出题人卡 (如 Thue-Morse 序列)。
 // 方案：用两套 (P, M) 同时计算，只有两个哈希值都相等才算相等。
+//区别：双哈希和单哈希只有一个区别，即双哈希不再使用unsigned long long的自动溢出，自己去维护对应的基数的余数
 
 struct DoubleHash {//重载运算符 双等号 小于号
     long long h1, h2;
@@ -191,7 +192,93 @@ ULL get_sub_hash_2d(int x1, int y1, int x2, int y2) {
          + h2d[x1-1][y1-1] * p_col[len_x] * p_row[len_y]; // 补左上
 }
 
-// ==================== 6. 避坑指南 (Blood & Tears) ====================
+// ==================== 6. 模型五：树哈希 (Tree Hashing) ====================
+// 场景：判断两棵树是否同构 (Isomorphism)。即：形状是否完全一样。
+// 核心哲学：树的哈希 = 根节点的哈希。
+// 递归定义：H(u) = 1 + sum( shift( H(v) ) )，其中 v 是 u 的子节点。
+// 关键点：
+//   1. 必须对子节点的哈希值进行【排序】，因为树的结构与子树顺序无关。
+//   2. 使用 shift 混淆函数防止异或冲突。
+
+// --- 基础工具 ---
+vector<int> adj[N]; // 邻接表
+ULL sub_hash[N];    // 记录以 u 为根的子树哈希
+
+// 混淆函数 (SplitMix64 变种)，防止哈希碰撞
+// 作用：打乱二进制位，让相似的数变得完全不同
+ULL shift(ULL x) {
+    x ^= x << 13;
+    x ^= x >> 7;
+    x ^= x << 17;
+    return x;
+}
+const ULL MASK = 0x517cc1b727220a95; // 随机大质数掩码
+
+// --- 模式 A：固定根哈希 (Rooted Tree Isomorphism) ---
+// 适用：题目指定了根节点，或者作为子程序使用
+void get_rooted_hash(int u, int fa) {
+    sub_hash[u] = 1; // 基础值，代表节点本身
+    vector<ULL> child_hashes;
+    
+    for (int v : adj[u]) {
+        if (v == fa) continue;
+        get_rooted_hash(v, u);
+        child_hashes.push_back(sub_hash[v]);
+    }
+    
+    // 【核心】排序！消除子树顺序的影响
+    sort(child_hashes.begin(), child_hashes.end());
+    
+    // 组合子节点哈希
+    for (ULL h : child_hashes) {
+        // 使用 shift(h ^ MASK) 进行混淆并累加
+        sub_hash[u] += shift(h ^ MASK);
+    }
+}
+
+// --- 模式 B：无根树哈希 (Unrooted Tree Isomorphism) ---
+// 痛点：两棵同构的树，如果选的根不同，算出来的哈希值会不同。
+// 方案：找到树的【重心 (Centroid)】作为根。
+// 原理：一棵树的重心最多只有 2 个。我们以重心为根跑一次哈希，结果就是唯一的。
+// 如果有两个重心，就跑两次取最小值（或都存下来）。
+
+int sz[N], max_part[N]; // 重心相关数组
+vector<int> centroids;  // 存储找到的重心
+
+// 找重心 DFS
+void get_centroid(int u, int fa, int total_nodes) {
+    sz[u] = 1;
+    max_part[u] = 0;
+    for (int v : adj[u]) {
+        if (v == fa) continue;
+        get_centroid(v, u, total_nodes);
+        sz[u] += sz[v];
+        max_part[u] = max(max_part[u], sz[v]);
+    }
+    max_part[u] = max(max_part[u], total_nodes - sz[u]);
+    
+    // 如果最大连通块 <= n/2，则是重心
+    if (max_part[u] <= total_nodes / 2) {
+        centroids.push_back(u);
+    }
+}
+
+// 获取无根树的唯一指纹
+ULL get_unrooted_hash(int n) {
+    centroids.clear();
+    get_centroid(1, 0, n); // 1. 先找重心
+    
+    ULL res = ULLONG_MAX; // 存最小哈希值
+    
+    // 2. 分别以找到的重心为根，跑固定根哈希
+    for (int root : centroids) {
+        get_rooted_hash(root, 0);
+        res = min(res, sub_hash[root]);
+    }
+    return res;
+}
+
+// ==================== 7. 避坑指南 (Blood & Tears) ====================
 /*
 1. 数组大小 (RE 之源)
    错误：int hash[100];
@@ -218,4 +305,11 @@ ULL get_sub_hash_2d(int x1, int y1, int x2, int y2) {
 6. 二维哈希的进制
    错误：行和列使用相同的 P。
    修正：行用 131，列用 13331，防止对称矩阵冲突。
+
+7. 树哈希细节
+   - 排序：子节点哈希必须 sort，否则左子树和右子树交换会被判为不同。
+   - 深度：如果树很深（链状），递归可能爆栈，需注意系统栈大小。
+   - 异或坑：直接用 sum += (h[v] ^ MASK) 是不行的，因为异或满足交换律容易冲突，
+            必须套一层 shift() 函数打乱位。
+   - 无根树：不要随便选点当根，必须找重心（或者用换根 DP 算出所有点的哈希取最值）。
 */
