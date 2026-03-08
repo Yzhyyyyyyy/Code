@@ -215,6 +215,7 @@ ULL shift(ULL x) {
 const ULL MASK = 0x517cc1b727220a95; // 随机大质数掩码
 
 // --- 模式 A：固定根哈希 (Rooted Tree Isomorphism) ---
+//此处使用的位运算是按位异或，需要按位异或一个掩码
 // 适用：题目指定了根节点，或者作为子程序使用
 void get_rooted_hash(int u, int fa) {
     sub_hash[u] = 1; // 基础值，代表节点本身
