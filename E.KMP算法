@@ -214,8 +214,8 @@ void kmp_with_stack(string s, string p) {
         
         f[top] = j; // 记录当前状态
         
-        if (j == m - 1) { // 匹配成功
-            top -= (m - 1); // 弹出模式串长度 (删除)
+        if (j == m) { // 匹配成功
+            top -= (m); // 弹出模式串长度 (删除)
             // 下一轮循环会自动读取新的 f[top]，实现无缝衔接
         }
     }
