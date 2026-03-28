@@ -1,3 +1,8 @@
+# C++ STL 实战笔记与进阶避坑指南
+
+## 🌟 第一部分：STL 常用容器笔记（原版）
+
+```cpp
 // ==================== C++ STL 常用容器笔记 ====================
 
 #include <queue>
@@ -365,3 +370,63 @@ fill(v.begin(), v.end(), val);              // 填充为 val，O(n)
 // 3. 需要最值 → priority_queue
 // 4. 需要顺序处理 → queue（BFS）、stack（DFS）
 // 5. 需要随机访问 → vector
+```
+
+---
+
+## 💡 第二部分：考场实战踩坑与进阶技巧（新增补充）
+
+### 1. 自定义排序：`sort` vs `set` 的巨大区别
+在考场上，给自定义结构体排序是最常见的需求，但 `sort` 和 `set` 的语法要求完全不同，极易踩坑！
+
+*   **对 `sort` 排序（推荐写独立 `cmp` 函数）**
+    `sort` 是一个函数，可以直接传入独立的比较函数，语法最简单直观。
+    ```cpp
+    struct Student { int id, score; };
+    // 独立的 cmp 函数
+    bool cmp(Student a, Student b) { return a.score < b.score; } 
+    
+    // 使用：
+    sort(arr, arr + n, cmp);
+    ```
+
+*   **把结构体塞进 `set` / `map`（推荐在结构体内重载 `<`）**
+    `set` 是一个容器模板，**不能直接传函数名**。如果强行写外挂 `cmp`，必须写成复杂的“仿函数”（Functor）。因此，考场上最稳妥的做法是**直接在结构体内部重载 `<` 运算符**。
+    ```cpp
+    struct Student {
+        int id, score;
+        // 必须加两个 const！
+        bool operator < (const Student& b) const {
+            return score < b.score; 
+        }
+    };
+    
+    // 使用：
+    set<Student> s; // 直接塞，set 会自动调用你写的 < 规则
+    ```
+
+### 2. 为什么存坐标用 `set` 而不是速度更快的 `unordered_set`？
+从算法逻辑上，单纯存坐标并查找，确实不需要排序，哈希表（`unordered_set`）是理论最优解。但 C++ 有一个底层硬伤：
+
+*   **致命坑点**：C++ 官方**没有为 `pair` 提供哈希函数**！如果你在考场上写下 `unordered_set<pair<int, int>>`，会直接**编译报错（CE）**！
+*   **考场最优解**：直接使用 `set<pair<int, int>>`。虽然底层红黑树会多余地排个序，但 C++ 官方已经帮 `pair` 写好了比较规则（先比 first 再比 second），一行代码都不用多写，且 $O(\log N)$ 的时间复杂度在 $N \le 10^5$ 的数据量下完全不会超时。
+*   **极限操作（坐标压缩）**：如果非要用 `unordered_set` 追求极限速度，可以把二维坐标压缩成一个 `long long`：
+    ```cpp
+    unordered_set<long long> locate;
+    long long hash_val = (long long)x * 2000000000LL + y; // 降维打击
+    locate.insert(hash_val);
+    ```
+
+### 3. `priority_queue` 的重载运算符（反直觉大坑）
+普通排序时，`return a < b` 代表从小到大排。但在 `priority_queue`（优先队列）中，逻辑是**反过来**的！
+
+*   **底层逻辑**：优先队列默认是**大顶堆**。它通过你重载的 `<` 符号来判断，**谁在 `<` 的右边（谁更大），谁就浮到堆顶**。
+*   **如何写小顶堆（如 Dijkstra 算法）**：为了让 `cost` 最小的节点浮到堆顶，我们必须“欺骗” C++，故意把逻辑写反（用 `>`）。
+    ```cpp
+    struct Node {
+        int id, cost;
+        bool operator < (const Node& b) const {
+            return cost > b.cost;  // 故意写反！得到小顶堆
+        }
+    };
+    ```
