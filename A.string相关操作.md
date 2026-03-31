@@ -1,6 +1,6 @@
 # C++ string解析与大模拟实战指南
 
-本文档总结了在处理类似 CCF CSP 201709-3 "JSON 查询" 这样的大模拟题时，关于 C++ `std::string` 的核心知识点、常见陷阱以及最优的数据结构设计思路。
+本文档总结了在处理类似 CCF CSP 201709-3 "JSON 查询" 或 201403-3 "命令行选项" 这样的大模拟题时，关于 C++ `std::string` 的核心知识点、常见陷阱以及最优的数据结构设计思路。
 
 ---
 
@@ -126,3 +126,75 @@ string extract_string(const string& json_str, int& i) {
 }
 ```
 这种方法不仅完美避开了所有转义陷阱，还能顺手完成题目要求的“将原文本中的转义字符还原”的任务。
+
+---
+
+## 四、 字符串按空格切分的神器：`stringstream` 与 `getline` 避坑
+
+在处理命令行解析（如 CCF CSP 201403-3 "命令行选项"）或需要按空格分割单词的大模拟题时，手动写 `for` 循环寻找空格极其繁琐且容易出错。此时，`std::stringstream` 是降维打击级别的工具。
+
+### 1. `stringstream`：优雅的“切词机”
+`stringstream` 可以将一个包含多个空格的长字符串，转换成类似 `cin` 的输入流，从而实现自动过滤空格、逐个提取单词。
+
+*   **头文件**：必须包含 `#include <sstream>`。
+*   **标准解析模板**：
+    ```cpp
+    #include <iostream>
+    #include <string>
+    #include <sstream>
+    using namespace std;
+
+    // 假设 line 是 "ls -a -l documents"
+    void parse_command(const string& line) {
+        stringstream ss(line); // 将长字符串塞入切词机
+        string token;
+        
+        // 核心魔法：只要还能切出单词，循环就继续
+        while (ss >> token) {
+            cout << "解析到单词: " << token << endl;
+            
+            // 如果遇到需要参数的选项（如 -w 10）
+            if (token == "-w") {
+                string param;
+                if (ss >> param) { // 顺手再切一个单词作为参数
+                    cout << "参数是: " << param << endl;
+                }
+            }
+        }
+    }
+    ```
+
+### 2. `while (ss >> token)` 的底层逻辑（C++ OOP 魔法）
+为什么一个读取动作可以作为 `while` 的判断条件？这得益于 C++ 的**运算符重载**与**隐式类型转换**：
+1.  **重载 `>>`**：`stringstream` 类重载了 `>>` 运算符。执行 `ss >> token` 时，它不仅把切好的单词赋给 `token`，还会**将 `ss` 对象自身（引用）作为返回值返回**。
+2.  **隐式转换**：当流对象（如 `ss` 或 `cin`）被放在 `while` 的条件判断中时，会自动转换为 `bool` 值。如果读取成功，返回 `true`；如果已经读到字符串末尾（无词可切），内部错误标志位亮起，返回 `false`，循环优雅结束。
+
+### 3. `getline` 的致命陷阱：幽灵回车符（CSP 必考！）
+
+**问题**：当使用 `getline(cin, line)` 读取包含空格的整行命令时，如果前面用过 `cin >>`，第一条命令往往会读到一个空字符串，导致整个程序逻辑错位。
+
+**原因解析**：
+*   `cin >> n` 读取数字时，极其“懒惰”，它只拿走数字，**把用户敲下的回车符 `\n` 留在了输入缓冲区里**。
+*   紧接着执行 `getline(cin, line)` 时，`getline` 一探头发现缓冲区第一个字符就是 `\n`，误以为这一行已经结束，于是直接给 `line` 赋了一个空字符串，并结束读取。
+
+**破局方法：手动“吃掉”回车符**
+在 `cin >>` 和 `getline` 之间，**必须**插入一句 `cin.ignore()`，用于清空缓冲区里残留的那个换行符。
+
+**满分输入读取模板**：
+```cpp
+int n;
+cin >> n;          // 读入行数
+cin.ignore();      // 【极其关键】吃掉残留的回车符！
+
+for (int i = 0; i < n; i++) {
+    string line;
+    getline(cin, line); // 现在可以安全、完整地读取一整行了
+    
+    stringstream ss(line);
+    // ... 接着使用 ss >> token 进行处理
+}
+```
+
+--- 
+**总结**：
+处理大模拟题的输入时，牢记黄金法则：**连续无空格的数据用 `cin >>`，带空格的整行数据用 `getline`；两者交替使用时，中间必加 `cin.ignore()`；拿到整行数据后，用 `stringstream` 进行切分。**
