@@ -55,6 +55,52 @@ while (s.find("{{ ") != string::npos) {
 }
 ```
 
+### 3. 字符判断神器：`<cctype>` 库（大模拟必背）
+在处理复杂的字符串解析（如化学方程式、IP地址、JSON）时，经常需要判断当前字符是字母还是数字。千万不要手写 `if (c >= 'a' && c <= 'z')`，极易出错且代码冗长。
+C++ 提供了 `<cctype>` 头文件，包含了一系列高效的字符分类函数：
+*   **`isalpha(c)`**：判断字符 `c` 是否为**字母**（包括大写 `A-Z` 和小写 `a-z`）。如果是，返回非零值（真）；否则返回 0（假）。
+*   **`isdigit(c)`**：判断字符 `c` 是否为**数字**（`0-9`）。如果是，返回非零值（真）；否则返回 0（假）。
+    *   *注意：函数名是 `isdigit` 而不是 `isdigital` 哦！*
+*   **`isupper(c)` / `islower(c)`**：分别判断是否为大写字母 / 小写字母。
+*   **`isalnum(c)`**：判断是否为**字母或数字**（Alpha-Numeric）。
+
+#### 🏆 实战套路：双 `while` 游标法解析连续字符
+面对连在一起的字符串（如化学式 `al2s3o12`），使用 `while` 配合 `isalpha` 和 `isdigit` 可以极其优雅地分离字母和数字，避免复杂的 `if-else` 状态机。
+
+```cpp
+#include <cctype>
+#include <string>
+#include <iostream>
+
+using namespace std;
+
+void parse_chemical(const string& s) {
+    int pos = 0;
+    int len = s.length();
+    
+    while (pos < len) {
+        // 1. 提取连续的字母（元素名）
+        string elem = "";
+        while (pos < len && isalpha(s[pos])) {
+            elem += s[pos];
+            pos++;
+        }
+        
+        // 2. 提取连续的数字（原子个数）
+        int count = 0;
+        while (pos < len && isdigit(s[pos])) {
+            count = count * 10 + (s[pos] - '0'); // 标准的字符转数字写法
+            pos++;
+        }
+        
+        // 如果没有数字（比如省略了1），可以根据题意补全
+        if (count == 0) count = 1;
+        
+        cout << "元素: " << elem << ", 数量: " << count << endl;
+    }
+}
+```
+
 ---
 
 ## 二、 数据结构设计：降维打击的“路径展平”
