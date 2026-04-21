@@ -1,7 +1,4 @@
-//适用：单源最短路，边权非负
-//为什么要有优先队列：
-//在步权不相等的情况下，先搜索到的代表步数少，不一定代表花费（路权总和）少
-//因此要根据路权的总和再来进行排序# 🚀 Dijkstra 算法核心笔记
+# 🚀 Dijkstra 算法核心笔记
 
 ## 一、 算法适用场景
 *   **解决问题**：单源最短路径（求从一个固定的起点，到其他所有点的最短距离）。
@@ -47,18 +44,13 @@
 3.  **记录前驱**：在 `pre` 数组里记下 `pre[v] = u`（告诉 `v`，你是通过 `u` 走过来的，不是飞过来的）。
 
 ### 第 4 步：循环往复
-重复第 2 步和第 3 步，直到优先队列空了为止。此时，距离表 `dis` 里存的就是起点到所有点的终极最短距离。
+重复第 2 步和第 3 步，直到优先队列空了为止。
 
-## 五、 如何还原走过的路径？
-利用我们在松弛操作时记录的 `pre` 数组。
-因为 `pre` 记录的是“上一步是怎么来的”，所以我们可以从终点开始，顺藤摸瓜一直往回找，直到找到起点（前驱为 -1）。
-利用**递归**，先打印前面的路径，再打印自己，就能正向输出一条完整的从起点到终点的最短路线。
+---
 
-//Sum up:
-//“Dijkstra 算法就是在 BFS 的基础上计算了累计路权，并利用优先队列进行排序。”
-//“它不单单通过‘是否到达’来判断，而是通过‘路权比较’来决定是否更新；
-//每次处理当前节点时，都附带检查周围邻居是否可以通过当前节点更快到达。”
+## 五、 完整 C++ 模板代码
 
+```cpp
 #include <iostream>
 #include <vector>
 #include <queue>
@@ -68,8 +60,6 @@ using namespace std;
 
 // 定义无穷大，0x3f3f3f3f 是一个很大的数，且两数相加不会溢出 int
 const int INF = 0x3f3f3f3f; 
-// 如果题目数据很大，距离可能超过 int，请使用 long long 和 0x3f3f3f3f3f3f3f3fLL
-typedef long long ll;
 
 // 边的结构体
 struct Edge {
@@ -77,34 +67,25 @@ struct Edge {
     int weight; // 边权
 };
 
-// 邻接表存图
-// MAXN 根据题目要求修改，通常 1e5 或 2e5
 const int MAXN = 100005; 
-vector<Edge> adj[MAXN]; 
+vector<Edge> adj[MAXN]; // 邻接表存图
 
-// dis[i] 存储起点到 i 的最短距离
-int dis[MAXN]; 
-// vis[i] 标记点 i 是否已经遍历到了
-bool vis[MAXN]; 
+int dis[MAXN];  // 存储起点到 i 的最短距离
+bool vis[MAXN]; // 标记点 i 是否已经彻底确定最短路
+int pre[MAXN];  // 记录前驱节点，用于输出路径
 
 // s: 起点, n: 点的总数
 void dijkstra(int s, int n) {
     // 1. 初始化
-    // memset(dis, 0x3f, sizeof(dis)); // 慎用 memset 如果是 long long
-    for(int i = 1; i <= n; i++) dis[i] = INF;
-    for(int i = 1; i <= n; i++) vis[i] = false;
-//如果要问走过的路径是啥：
-for(int i = 1; i <= n; i++) pre[i] = -1; // -1 表示没有前驱
-   
-dis[s] = 0;
+    for(int i = 1; i <= n; i++) {
+        dis[i] = INF;
+        vis[i] = false;
+        pre[i] = -1; // -1 表示没有前驱
+    }
+    dis[s] = 0;
     
-    // 优先队列，存 pair<距离, 点编号>
-    // priority_queue 默认是大根堆，我们需要小根堆（距离最小的在上面）
-    // greater 也就是让它变成从小到大排序
+    // 优先队列，存 pair<距离, 点编号>，小根堆
     priority_queue<pair<int, int>, vector<pair<int, int>>, greater<pair<int, int>>> pq;
-//此处使用pair，因此可以不需要重载运算符，只需要greater将大顶堆改成小顶堆就可以了
-
-    // 把起点放入队列
     pq.push({0, s});
     
     while (!pq.empty()) {
@@ -112,9 +93,9 @@ dis[s] = 0;
         int u = pq.top().second;
         pq.pop();
         
-        // 如果这个点已经处理过（即已经找到了最短路），跳过
+        // 如果这个点已经处理过，跳过（懒惰删除）
         if (vis[u]) continue;
-        vis[u] = true; // 标记为已处理
+        vis[u] = true; 
         
         // 遍历 u 的所有邻居
         for (auto& edge : adj[u]) {
@@ -122,18 +103,14 @@ dis[s] = 0;
             int w = edge.weight;
             
             // 松弛操作：如果通过 u 到 v 比直接去 v 更近
-           // 之前的记录：去 v 需要 100 分钟 (dis[v] = 100)
-// 现在的发现：我从 u 走到 v，只需要 10 + 5 = 15 分钟
-
-if (dis[v] > dis[u] + w) {  // 100 > 15 ？ 是的！
-    dis[v] = dis[u] + w;    // 赶紧更新：去 v 的最短路其实是 15
-    pq.push({dis[v], v});   // 把这个新发现放入队列，重新检查 v 的邻居
-    pre[v] = u;             // 记录：我是从 u 走过来的，不是直接飞过来的
+            if (dis[v] > dis[u] + w) {  
+                dis[v] = dis[u] + w;    
+                pre[v] = u;             // 记录：我是从 u 走过来的
+                pq.push({dis[v], v});   // 把新发现放入队列
             }
         }
     }
 }
-
 
 // 打印路径函数（递归法）
 // 调用 print_path(终点) 即可
@@ -143,9 +120,6 @@ void print_path(int t) {
     cout << t << " ";    // 再打印自己
 }
 
-
-// 使用示例
-/*
 int main() {
     int n, m, s; // n点数, m边数, s起点
     cin >> n >> m >> s;
@@ -161,8 +135,9 @@ int main() {
     
     // 输出到各点的距离
     for (int i = 1; i <= n; i++) {
-        cout << dis[i] << " ";
+        if (dis[i] == INF) cout << "INF ";
+        else cout << dis[i] << " ";
     }
     return 0;
 }
-*/
+```
