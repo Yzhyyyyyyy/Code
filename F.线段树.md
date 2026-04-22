@@ -26,9 +26,9 @@
 
 ---
 
-## 3. 四大核心函数
+## 3. 五大核心函数
 
-掌握这四个函数，你就掌握了线段树的骨架。
+掌握这五个函数，你就掌握了线段树的骨架。
 
 ### ① `pushup(u)`：向上更新
 儿子节点的信息发生变化时，更新父亲节点。
@@ -38,7 +38,23 @@ void pushup(int u) {
 }
 ```
 
-### ② `pushdown(u)`：向下传递（最重要！）
+### ② `build(u, l, r)`：建树（初始化）
+给每个节点分配好它要管辖的区间 $$[l, r]$$，并把初始的 `sum` 算出来。
+```cpp
+void build(int u, int l, int r) {
+    tr[u].l = l, tr[u].r = r, tr[u].add = 0;
+    if (l == r) {
+        tr[u].sum = w[l]; // w 是存原始数据的数组
+        return;
+    }
+    int mid = (l + r) >> 1;
+    build(u << 1, l, mid);
+    build(u << 1 | 1, mid + 1, r);
+    pushup(u); // 儿子建好了，更新自己
+}
+```
+
+### ③ `pushdown(u)`：向下传递（最重要！）
 把父亲兜里的“懒标记”发给两个儿子。
 ```cpp
 void pushdown(int u) {
@@ -57,7 +73,7 @@ void pushdown(int u) {
 }
 ```
 
-### ③ `modify(u, l, r, d)`：区间修改
+### ④ `modify(u, l, r, d)`：区间修改
 给区间 $$[l, r]$$ 加上 $$d$$。
 ```cpp
 void modify(int u, int l, int r, long long d) {
@@ -81,7 +97,7 @@ void modify(int u, int l, int r, long long d) {
 }
 ```
 
-### ④ `query(u, l, r)`：区间查询
+### ⑤ `query(u, l, r)`：区间查询
 查询区间 $$[l, r]$$ 的和。
 ```cpp
 long long query(int u, int l, int r) {
@@ -110,3 +126,97 @@ long long query(int u, int l, int r) {
 - [ ] 区间和 `sum` 和懒标记 `add` 是否使用了 `long long`？（CSP 极爱考 `int` 溢出）
 - [ ] `modify` 和 `query` 中，只要没有被完全包含（需要往下递归），是否**第一时间调用了 `pushdown(u)`**？
 - [ ] `pushdown` 中，儿子增加的值是否乘以了**区间的长度**？
+- [ ] `main` 函数里调用 `build`、`modify`、`query` 时，第一个参数 `u` 是否**永远传 `1`**？
+
+---
+
+## 5. 完整实战模板 (Copy-Paste Ready)
+
+这是一个支持“区间加法”和“区间求和”的完整线段树模板，可以直接用于洛谷 P3372 等经典模板题。
+
+```cpp
+#include <iostream>
+#include <cstdio>
+
+using namespace std;
+
+const int N = 100010; // 根据题目修改大小
+
+int n, m;
+int w[N];
+
+struct Node {
+    int l, r;
+    long long sum;
+    long long add;
+} tr[N * 4]; // 必须开 4 倍空间！
+
+void pushup(int u) {
+    tr[u].sum = tr[u << 1].sum + tr[u << 1 | 1].sum;
+}
+
+void pushdown(int u) {
+    if (tr[u].add) {
+        tr[u << 1].sum += tr[u].add * (tr[u << 1].r - tr[u << 1].l + 1);
+        tr[u << 1].add += tr[u].add;
+        tr[u << 1 | 1].sum += tr[u].add * (tr[u << 1 | 1].r - tr[u << 1 | 1].l + 1);
+        tr[u << 1 | 1].add += tr[u].add;
+        tr[u].add = 0;
+    }
+}
+
+void build(int u, int l, int r) {
+    tr[u].l = l, tr[u].r = r, tr[u].add = 0;
+    if (l == r) {
+        tr[u].sum = w[l];
+        return;
+    }
+    int mid = (l + r) >> 1;
+    build(u << 1, l, mid);
+    build(u << 1 | 1, mid + 1, r);
+    pushup(u);
+}
+
+void modify(int u, int l, int r, long long d) {
+    if (tr[u].l >= l && tr[u].r <= r) {
+        tr[u].sum += d * (tr[u].r - tr[u].l + 1);
+        tr[u].add += d;
+        return;
+    }
+    pushdown(u);
+    int mid = (tr[u].l + tr[u].r) >> 1;
+    if (l <= mid) modify(u << 1, l, r, d);
+    if (r > mid)  modify(u << 1 | 1, l, r, d);
+    pushup(u);
+}
+
+long long query(int u, int l, int r) {
+    if (tr[u].l >= l && tr[u].r <= r) return tr[u].sum;
+    pushdown(u);
+    long long res = 0;
+    int mid = (tr[u].l + tr[u].r) >> 1;
+    if (l <= mid) res += query(u << 1, l, r);
+    if (r > mid)  res += query(u << 1 | 1, l, r);
+    return res;
+}
+
+int main() {
+    scanf("%d%d", &n, &m);
+    for (int i = 1; i <= n; i ++ ) scanf("%d", &w[i]);
+    
+    build(1, 1, n); // 初始化建树
+    
+    while (m -- ) {
+        int op, l, r;
+        long long d;
+        scanf("%d%d%d", &op, &l, &r);
+        if (op == 1) {
+            scanf("%lld", &d);
+            modify(1, l, r, d); // 区间加法
+        } else {
+            printf("%lld\n", query(1, l, r)); // 区间查询
+        }
+    }
+    return 0;
+}
+```
