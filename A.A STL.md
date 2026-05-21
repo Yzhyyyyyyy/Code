@@ -251,647 +251,165 @@ fill(v.begin(), v.end(), val);
 ## 💡 第二部分：考场实战踩坑与进阶技巧
 
 ### 1. 自定义排序：`sort` vs `set` 的巨大区别
-
-在考场上，给自定义结构体排序是最常见的需求，但 `sort` 和 `set` 的语法要求完全不同，极易踩坑。
-
-#### 对 `sort` 排序：推荐写独立 `cmp` 函数
-
-```cpp
-struct Student {
-    int id, score;
-};
-
-bool cmp(Student a, Student b) {
-    return a.score < b.score;
-}
-
-sort(arr, arr + n, cmp);
-```
-
-#### 把结构体塞进 `set` / `map`：推荐在结构体内重载 `<`
-
-```cpp
-struct Student {
-    int id, score;
-
-    bool operator < (const Student& b) const {
-        return score < b.score;
-    }
-};
-
-set<Student> s;
-```
-
-注意：
-
-```cpp
-bool operator < (const Student& b) const
-```
-
-后面的两个 `const` 很重要：
-
-- 参数 `const Student& b`：避免拷贝，保证不修改对方；
-- 函数末尾 `const`：保证比较时不修改自己。
-
----
-
-### 2. 为什么存坐标用 `set` 而不是速度更快的 `unordered_set`？
-
-从算法逻辑上看，单纯存坐标并查找，确实不需要排序，哈希表理论上更快。
-
-但 C++ 有一个常见坑：
-
-> C++ 标准库没有给 `pair<int, int>` 默认提供哈希函数。
-
-所以这句在很多环境下会直接编译错误：
-
-```cpp
-unordered_set<pair<int, int>> s;
-```
-
-考场最稳做法：
-
-```cpp
-set<pair<int, int>> s;
-```
-
-因为 `pair` 自带比较规则，可以直接放入 `set`。
-
-如果非要使用 `unordered_set`，可以把二维坐标压成一个 `long long`：
-
-```cpp
-long long encode(int x, int y) {
-    return (long long)x * 2000000000LL + y;
-}
-
-unordered_set<long long> locate;
-locate.insert(encode(x, y));
-```
-
----
-
-### 3. `priority_queue` 的重载运算符：反直觉大坑
-
-`priority_queue` 默认是大顶堆。
-
-如果想让 `cost` 小的元素先出来，需要反着写：
-
-```cpp
-struct Node {
-    int id, cost;
-
-    bool operator < (const Node& b) const {
-        return cost > b.cost;
-    }
-};
-```
-
-口诀：
-
-```text
-priority_queue 想要小的先出，operator< 里面常常写 >
-```
-
----
-
-### 4. `map` 与 `set` 的底层灵魂：Key 的绝对只读性
-
-#### `map<Key, Value>`
-
-`map` 的本质是：
-
-```text
-key 是柜子门牌号，value 是柜子里的东西
-```
-
-- key 不能修改；
-- value 可以修改。
-
-例如：
-
-```cpp
-map<string, int> mp;
-mp["alice"]++;
-```
-
-这里修改的是 value。
-
-#### `set<Key>`
-
-`set` 只有 key，没有 value。
-
-所以元素一旦插入，不能直接修改。
-
-如果非要改：
-
-```cpp
-s.erase(old_value);
-s.insert(new_value);
-```
-
----
-
-### 5. 到底什么时候必须重载 `<` 运算符？
-
-在 CSP 考场上，下面几个场景很常见：
-
-1. `priority_queue` 存自定义结构体；
-2. `set` 存自定义结构体；
-3. `map` 的 key 是自定义结构体；
-4. 需要让结构体支持排序。
-
-示例：
-
-```cpp
-struct Point {
-    int x, y;
-
-    bool operator < (const Point& b) const {
-        if (x != b.x) return x < b.x;
-        return y < b.y;
-    }
-};
-```
-
----
-
-### 6. 迭代器与 `lower_bound` 神技
-
-`lower_bound(val)` 的含义：
-
-```text
-找第一个 >= val 的位置
-```
-
-对 `set`：
-
-```cpp
-auto it = s.lower_bound(val);
-```
-
-拿到迭代器之后，第一件事通常是检查：
-
-```cpp
-if (it != s.end()) {
-    cout << *it << endl;
-}
-```
-
-找最后一个 `< val` 的元素：
-
-```cpp
-auto it = s.lower_bound(val);
-
-if (it != s.begin()) {
-    --it;
-    cout << *it << endl;
-}
-```
-
-注意：
-
-- `end()` 不能解引用；
-- `begin()` 再 `--` 会炸；
-- 空容器时 `begin() == end()`。
-
----
-
-### 7. 容器的逆序操作：从大到小排序与反向遍历
-
-#### 方法一：使用 `greater`
-
-```cpp
-set<int, greater<int>> s;
-```
-
-对 `pair` 也可以：
-
-```cpp
-set<pair<int, int>, greater<pair<int, int>>> s;
-```
-
-`pair` 的比较规则依旧是：
-
-```text
-先比 first，再比 second
-```
-
-只不过整体变成从大到小。
-
-#### 方法二：使用反向迭代器
-
-```cpp
-map<int, string> mp;
-
-for (auto it = mp.rbegin(); it != mp.rend(); ++it) {
-    cout << it->first << " " << it->second << endl;
-}
-```
-
-注意：
-
-```cpp
-++it
-```
-
-对反向迭代器来说，逻辑上是往前走，但物理上是从大到小遍历。
-
----
-
-### 8. 迭代器的绝对领域：左闭右开 `[begin(), end())`
-
-STL 容器统一遵循：
-
-```text
-[begin(), end())
-```
-
-含义：
-
-- `begin()` 指向第一个元素；
-- `end()` 指向最后一个元素的下一个位置；
-- `end()` 不能解引用；
-- 空容器时 `begin() == end()`。
-
-示例：
-
-```text
-list<int> l = {10, 20, 30};
-
-    10        20        30       虚拟位置
-    ↑                             ↑
- begin()                         end()
-```
-
----
-
-### 9. 告别又臭又长的迭代器类型：`auto` 与 `decltype`
-
-手写复杂迭代器类型很麻烦：
-
-```cpp
-map<string, vector<int>>::iterator it;
-```
-
-考场推荐：
-
-```cpp
-auto it = mp.begin();
-```
-
-如果要定义“存迭代器”的容器，可以用 `decltype`：
-
-```cpp
-list<int> l;
-vector<decltype(l.begin())> pos(100005);
-```
-
-含义：
-
-```text
-l.begin() 是什么类型，pos 里就存什么类型
-```
-
-但是要注意：
-
-> 如果编号范围很大、不连续，就不要用 vector 存迭代器，要用 unordered_map。
-
----
-
-### 10. 链表（`list`）满分大招：`unordered_map` 缓存迭代器，化 $$O(N^2)$$ 为均摊 $$O(1)$$
-
-`list` 的插入和删除极快，都是 $$O(1)$$。
-
-但是 `list` 有一个巨大缺点：
-
-> 查找极慢。
-
-比如：
-
-```cpp
-auto it = find(l.begin(), l.end(), x);
-```
-
-这是线性查找，复杂度是：
-
-$$O(N)$$
-
-如果每次操作都这么找，总复杂度可能变成：
-
-$$O(N^2)$$
-
-直接 TLE。
-
----
-
-#### 破局核心
-
-`list` 有一个非常重要的性质：
-
-> 插入或删除某个节点时，其他节点的迭代器不会失效。
-
-更准确地说：
-
-- `insert` 不会让已有元素的迭代器失效；
-- `erase(it)` 只会让被删除的那个迭代器失效；
-- 其他节点的迭代器仍然有效。
-
-所以我们可以用一个映射表记录：
-
-```text
-某个元素 x 当前在 list 里的位置
-```
-
-如果元素编号很小且连续，可以用 `vector`：
-
-```cpp
-vector<list<int>::iterator> pos(max_id + 1);
-```
-
-但是如果元素编号很大、不连续，例如题目里内存块编号可能达到：
-
-$$2^{30}$$
-
-那就不能直接拿编号当数组下标。
-
-这时应该使用：
-
-```cpp
-unordered_map<int, list<int>::iterator> pos;
-```
-
----
-
-#### 核心写法
-
-```cpp
-list<int> l;
-
-// key：元素编号
-// value：该元素在 list 中的迭代器
-unordered_map<int, list<int>::iterator> pos;
-```
-
-含义：
-
-```text
-pos[x] = x 在链表中的位置
-```
-
-以后想找 `x`，不要再：
-
-```cpp
-find(l.begin(), l.end(), x); // O(N)
-```
-
-而是：
-
-```cpp
-auto it = pos[x]; // 均摊 O(1)
-```
-
----
-
-#### LRU 模板
-
-```cpp
-#include <bits/stdc++.h>
-using namespace std;
-
-int main() {
-    int capacity = 3;
-
-    list<int> cache;
-
-    // 记录每个元素在 list 中的位置
-    unordered_map<int, list<int>::iterator> pos;
-
-    auto access = [&](int x) {
-        // 命中
-        if (pos.count(x)) {
-            cache.erase(pos[x]);
-            cache.push_front(x);
-            pos[x] = cache.begin();
-        }
-        // 未命中
-        else {
-            if ((int)cache.size() == capacity) {
-                int old = cache.back();
-                cache.pop_back();
-                pos.erase(old);
-            }
-
-            cache.push_front(x);
-            pos[x] = cache.begin();
+在考场上，给自定义结构体排序是最常见的需求，但 `sort` 和 `set` 的语法要求完全不同，极易踩坑！
+
+*   **对 `sort` 排序（推荐写独立 `cmp` 函数）**
+    `sort` 是一个函数，可以直接传入独立的比较函数，语法最简单直观。
+    ```cpp
+    struct Student { int id, score; };
+    // 独立的 cmp 函数
+    bool cmp(Student a, Student b) { return a.score < b.score; } 
+    
+    // 使用：
+    sort(arr, arr + n, cmp);
+    ```
+
+*   **把结构体塞进 `set` / `map`（推荐在结构体内重载 `<`）**
+    `set` 是一个容器模板，**不能直接传函数名**。如果强行写外挂 `cmp`，必须写成复杂的“仿函数”（Functor）。因此，考场上最稳妥的做法是**直接在结构体内部重载 `<` 运算符**。
+    ```cpp
+    struct Student {
+        int id, score;
+        // 必须加两个 const！
+        bool operator < (const Student& b) const {
+            return score < b.score; 
         }
     };
+    
+    // 使用：
+    set<Student> s; // 直接塞，set 会自动调用你写的 < 规则
+    ```
 
-    access(1);
-    access(2);
-    access(3);
-    access(1);
-    access(4);
+### 2. 为什么存坐标用 `set` 而不是速度更快的 `unordered_set`？
+从算法逻辑上，单纯存坐标并查找，确实不需要排序，哈希表（`unordered_set`）是理论最优解。但 C++ 有一个底层硬伤：
 
-    for (int x : cache) {
-        cout << x << " ";
+*   **致命坑点**：C++ 官方**没有为 `pair` 提供哈希函数**！如果你在考场上写下 `unordered_set<pair<int, int>>`，会直接**编译报错（CE）**！
+*   **考场最优解**：直接使用 `set<pair<int, int>>`。虽然底层红黑树会多余地排个序，但 C++ 官方已经帮 `pair` 写好了比较规则（先比 first 再比 second），一行代码都不用多写，且 $$O(\log N)$$ 的时间复杂度在 $$N \le 10^5$$ 的数据量下完全不会超时。
+*   **极限操作（坐标压缩）**：如果非要用 `unordered_set` 追求极限速度，可以把二维坐标压缩成一个 `long long`：
+    ```cpp
+    unordered_set<long long> locate;
+    long long hash_val = (long long)x * 2000000000LL + y; // 降维打击
+    locate.insert(hash_val);
+    ```
+
+### 3. `priority_queue` 的重载运算符（反直觉大坑）
+普通排序时，`return a < b` 代表从小到大排。但在 `priority_queue`（优先队列）中，逻辑是**反过来**的！
+
+*   **底层逻辑**：优先队列默认是**大顶堆**。它通过你重载的 `<` 符号来判断，**谁在 `<` 的右边（谁更大），谁就浮到堆顶**。
+*   **如何写小顶堆（如 Dijkstra 算法）**：为了让 `cost` 最小的节点浮到堆顶，我们必须“欺骗” C++，故意把逻辑写反（用 `>`）。
+    ```cpp
+    struct Node {
+        int id, cost;
+        bool operator < (const Node& b) const {
+            return cost > b.cost;  // 故意写反！得到小顶堆
+        }
+    };
+    ```
+
+### 4. `map` 与 `set` 的底层灵魂：键（Key）的绝对只读性
+*   **`map<Key, Value>` 的本质是“带锁的柜子”**：
+    *   **键（Key）**：柜子门上的号码牌。一旦贴上去，**绝对不能修改**（底层强制加了 `const`）。改了号码牌，红黑树就全乱了。
+    *   **值（Value）**：柜子里面的东西。可以随意修改（如 `m["alice"]++`）。
+*   **`set<Key>` 的本质是“刻在石头上的名字”**：
+    *   它**只有键（Key），没有值（Value）**。
+    *   一旦 `insert` 进去，元素就是**只读（const）**的。绝对不能通过迭代器修改它的值。如果非要改，只能 `erase` 删掉旧的，再 `insert` 新的。
+*   **考场口诀**：
+    *   需要**“查找 + 频繁修改数据”**（如统计频次、更新最早时间） $\rightarrow$ 无脑选 `map` / `unordered_map`。
+    *   需要**“自动排序 + 自动去重 + 只看不改”** $\rightarrow$ 无脑选 `set`。
+
+### 5. 到底什么时候必须重载 `<` 运算符？
+在 CSP 考场上，只有以下 3 个场景**绝对逃不掉**重载 `<`：
+1.  **`priority_queue`（优先队列/堆）**：只要塞入自定义 `struct`，必写重载，否则 CE。
+2.  **把 `struct` 作为 `map` 或 `set` 的键（Key）**：比如用二维坐标 `struct Point` 作为 `map` 的键统计频次，必须重载 `<` 让红黑树知道怎么建树。
+3.  **`set` 的动态维护与二分查找**：当需要用 `set` 动态插入/删除自定义结构体，并使用 `lower_bound` 快速查找时。
+
+### 6. 迭代器（Iterator）的正确打开方式与 `lower_bound` 神技
+`lower_bound` 返回的是迭代器（可视为指向红黑树节点的“高级指针”）。考场上拿到迭代器后，必须熟练掌握以下“三把钥匙”：
+1.  **验明正身（防 RE 神器）**：拿到迭代器第一件事，永远是判断 `if (it == s.end())`。如果不检查直接用，一旦没找到就会越界 RE。
+2.  **提取数据（解引用）**：确认安全后，用 `*it`（基本类型）或 `it->name`（结构体）获取里面的值。
+3.  **前后移动（考场高阶技巧）**：
+    *   `lower_bound(val)` 找的是**第一个 $\ge val$ 的元素**。
+    *   **怎么找最后一个 $< val$ 的元素？** 先用 `lower_bound` 找到位置，判断 `if (it != s.begin())` 后，直接 **`it--`** 往回退一步即可！
+
+### 7. 容器的逆序操作：从大到小排序与反向遍历（神技）
+考场上经常遇到需要“从大到小”处理数据的场景，STL 提供了两种极其优雅的解决方案：
+
+*   **方法一：从根源上倒排（直接使用 `greater`）**
+    不仅 `int` 可以用 `greater<int>`，`pair` 也完全可以直接套用！C++ 官方已经为 `pair` 写好了大于号 `>` 的比较规则（先比 `first`，相同再比 `second`）。
+    ```cpp
+    // 定义一个从大到小排序的 set，里面存 pair
+    set<pair<int, int>, greater<pair<int, int>>> s;
+    s.insert({1, 5});
+    s.insert({3, 8});
+    s.insert({3, 2});
+    // 遍历输出顺序：{3, 8} -> {3, 2} -> {1, 5}
+    ```
+    👉 *适用场景*：核心逻辑就是每次都要取最大值（例如直接用 `s.begin()` 拿最大元素）。
+
+*   **方法二：只在遍历时倒着看（使用反向迭代器 `rbegin` / `rend`）**
+    如果你不想改变容器默认从小到大的排序规则（比如还需要用 `lower_bound` 进行二分查找），只是想在输出时从大到小，可以直接使用反向迭代器。
+    *   `rbegin()`：指向最后一个元素（Reverse Begin）。
+    *   `rend()`：指向第一个元素的前一个位置（Reverse End）。
+    ```cpp
+    map<int, string> m;
+    m[1] = "Alice"; m[5] = "Bob"; m[3] = "Charlie";
+
+    // 注意：反向迭代器往前走依然是 ++，但物理上是往回退！
+    for (auto it = m.rbegin(); it != m.rend(); ++it) {
+        cout << it->first << " -> " << it->second << endl;
     }
+    // 输出顺序：5 -> 3 -> 1
+    ```
+    👉 *适用场景*：平时需要从小到大处理或二分查找，仅在特定时刻（如输出答案）需要逆序。
 
-    return 0;
-}
-```
-
-最后链表中：
-
+### 8. 迭代器的绝对领域：左闭右开 `[begin(), end())`
+在 C++ STL 中，所有容器的迭代器都严格遵循**“左闭右开”**原则：
+*   **`begin()`**：精准指向容器的**第 1 个元素**。直接 `*begin()` 拿到的就是首元素。
+*   **`end()`**：指向**最后一个元素的下一个位置**（一个虚拟的、越界的位置）。它本身不存储任何有效数据，仅仅作为“遍历结束的标志”。
+*   **空容器陷阱**：当容器为空时，`begin()` 会直接等于 `end()`。此时对 `begin()` 解引用会导致程序崩溃。
 ```text
-队首是最近使用，队尾是最久未使用
+示例： list<int> l = {10, 20, 30};
+      10        20        30       (越界/不存在)
+      ↑                             ↑
+   l.begin()                     l.end()
 ```
 
----
+### 9. 告别又臭又长的迭代器类型：`auto` 与 `decltype` 神法
+手写 `list<int>::iterator` 或 `map<string, vector<int>>::iterator` 既浪费时间又容易拼错。
+*   **单变量声明：无脑用 `auto`**
+    ```cpp
+    auto it = l.begin(); 
+    auto it2 = find(l.begin(), l.end(), 3);
+    ```
+*   **定义数组/容器时：用 `decltype` 魔法**
+    `decltype` 的意思是 **Declare Type（声明的类型）**。它可以让编译器“照抄”括号里表达式的类型。
+    ```cpp
+    // 意思是：l.begin() 是啥类型，我的 vector 就存啥类型！
+    vector<decltype(l.begin())> pos(100005); 
+    ```
+    这招在需要开数组存储迭代器时，简直是降维打击！
 
-#### 用在缓存模拟题中
+### 10. 链表（`list`）满分大招：`unordered_map` 缓存迭代器，化 $$O(N^2)$$ 为 $$O(1)$$
+`list` 的插入和删除极快（$$O(1)$$），但查找极慢（`find` 是 $$O(N)$$）。如果在 $$N$$ 次循环中每次都用 `find` 找人，总复杂度会飙升到 $$O(N^2)$$ 导致 TLE。
 
-如果有多个缓存组，可以写：
-
+**破局核心**：`list` 插入或删除元素时，**其他元素的迭代器绝对不会失效**（不像 `vector` 会内存大搬家）。
+**满分战术**：开一个 `unordered_map`，把每次 `insert` 或 `push` 得到的迭代器直接存起来！下次找人时，直接查表，瞬间实现 $$O(1)$$ 定位！
 ```cpp
-vector<list<int>> cache(N);
-vector<unordered_map<int, list<int>::iterator>> pos(N);
-vector<unordered_set<int>> dirty(N);
+list<int> l;
+// 核心魔法：用 unordered_map 专门存每个数字在 list 中的迭代器位置
+unordered_map<int, list<int>::iterator> pos;
+
+l.push_front(10);
+pos[10] = l.begin(); // 记录 10 的位置
+
+// 删除时 O(1) 秒杀，无需 find：
+auto it = pos[10];
+l.erase(it);
+pos.erase(10);       // 务必同步删除映射！
 ```
 
-含义：
-
-```text
-cache[g]：第 g 组的 LRU 链表
-pos[g][a]：内存块 a 在第 g 组链表中的位置
-dirty[g]：第 g 组里哪些块被写过，需要写回内存
-```
-
-判断命中：
-
-```cpp
-if (pos[g].count(a)) {
-    // 命中
-}
-```
-
-命中后移动到队首：
-
-```cpp
-cache[g].erase(pos[g][a]);
-cache[g].push_front(a);
-pos[g][a] = cache[g].begin();
-```
-
-未命中且需要替换队尾：
-
-```cpp
-int old = cache[g].back();
-cache[g].pop_back();
-
-pos[g].erase(old);
-dirty[g].erase(old);
-```
-
-插入新块：
-
-```cpp
-cache[g].push_front(a);
-pos[g][a] = cache[g].begin();
-```
-
----
-
-#### `unordered_map` 使用限制：没有排序，以及 key 必须可以哈希
-
-`unordered_map` 的优点是查找快，均摊 $$O(1)$$。
-
-但是它也有几个重要限制。
-
-##### 1. 不排序
-
-`unordered_map` 不会按照 key 从小到大排列。
-
-```cpp
-unordered_map<int, int> mp;
-mp[3] = 30;
-mp[1] = 10;
-mp[2] = 20;
-
-for (auto p : mp) {
-    cout << p.first << " " << p.second << endl;
-}
-```
-
-输出顺序是不确定的。
-
-所以如果你需要：
-
-- 按 key 从小到大遍历；
-- 找最小 key；
-- 找最大 key；
-- 找前驱；
-- 找后继；
-
-那就不要用 `unordered_map`，应该用：
-
-```cpp
-map
-set
-```
-
-##### 2. 不支持 `lower_bound` / `upper_bound`
-
-`map` 支持：
-
-```cpp
-mp.lower_bound(x);
-mp.upper_bound(x);
-```
-
-但 `unordered_map` 不支持。
-
-因为哈希表内部没有顺序。
-
-##### 3. key 必须可以哈希
-
-`unordered_map<Key, Value>` 要求：
-
-```text
-Key 必须能被哈希，并且能判断相等
-```
-
-可以直接作为 key 的常见类型：
-
-```cpp
-unordered_map<int, int> mp1;
-unordered_map<long long, int> mp2;
-unordered_map<string, int> mp3;
-```
-
-但是下面这种很多环境下不能直接用：
-
-```cpp
-unordered_map<pair<int, int>, int> mp; // 可能 CE
-```
-
-因为标准库通常没有给 `pair<int, int>` 提供默认哈希。
-
-考场建议把二维坐标压成 `long long`：
-
-```cpp
-long long encode(int x, int y) {
-    return ((long long)x << 32) ^ (unsigned int)y;
-}
-
-unordered_map<long long, int> mp;
-mp[encode(x, y)]++;
-```
-
-自定义结构体也不能直接作为 key：
-
-```cpp
-struct Point {
-    int x, y;
-};
-
-unordered_map<Point, int> mp; // 通常 CE
-```
-
-如果非要用，需要自己写：
-
-- `operator==`
-- 哈希函数
-
-示例：
-
-```cpp
-struct Point {
-    int x, y;
-
-    bool operator == (const Point& other) const {
-        return x == other.x && y == other.y;
-    }
-};
-
-struct PointHash {
-    size_t operator()(const Point& p) const {
-        return hash<long long>()(((long long)p.x << 32) ^ (unsigned int)p.y);
-    }
-};
-
-unordered_map<Point, int, PointHash> mp;
-```
-
----
-
-#### `unordered_map + list` 考场口诀
-
-```text
-list 负责维护顺序；
-unordered_map 负责 O(1) 定位；
-删除 list 节点时，一定同步 erase 掉 unordered_map 里的记录；
-编号小且连续，可以用 vector 存迭代器；
-编号大且稀疏，必须用 unordered_map 存迭代器；
-unordered_map 不排序，不能 lower_bound；
-unordered_map 的 key 必须可以哈希。
-```
+**⚠️ `unordered_map` 的致命限制与避坑**：
+1. **绝对无序**：它不按 key 排序，遍历顺序是随机的。如果需要顺序遍历或使用 `lower_bound` 二分查找，**必须换成 `map`**。
+2. **Key 必须可哈希**：
+   * `int`、`long long`、`string` 等自带哈希，可以直接当 key。
+   * **`pair<int, int>` 和自定义 `struct` 默认没有哈希函数**！直接写 `unordered_map<pair<int,int>, int>` 会编译报错（CE）。
+   * *考场最优解*：把二维坐标压成一个 `long long`（例如 `x * 2000000000LL + y`）作为 key，或者老老实实用 `map`。
