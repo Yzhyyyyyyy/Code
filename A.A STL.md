@@ -11,6 +11,8 @@
 #include <list>
 #include <set>
 #include <map>
+#include <unordered_set>
+#include <unordered_map>
 #include <algorithm>
 using namespace std;
 
@@ -18,390 +20,230 @@ using namespace std;
 // 数据结构：先进先出（FIFO），只能从队尾插入、队首删除
 // 应用场景：BFS、任务调度、层序遍历
 
-// 定义：
-queue<int> q;           // 存储 int 类型
-queue<string> qs;       // 存储 string 类型
+queue<int> q;
 
-// 常用函数：
 q.push(val);            // 队尾入队，O(1)
 q.pop();                // 队首出队，无返回值！O(1)
-q.front();              // 返回队首元素（不删除），O(1)
-q.back();               // 返回队尾元素（不删除），O(1)
-q.empty();              // 判断是否为空，返回 bool，O(1)
+q.front();              // 返回队首元素，O(1)
+q.back();               // 返回队尾元素，O(1)
+q.empty();              // 判断是否为空，O(1)
 q.size();               // 返回元素个数，O(1)
 
 // 注意：
 // 1. pop() 无返回值，需要先 front() 获取值，再 pop() 删除
-// 2. 访问队首前必须判断 !q.empty()，否则未定义行为
+// 2. 访问队首前必须判断 !q.empty()
 // 3. queue 不支持遍历，只能通过 pop() 逐个取出
-
-// 示例：BFS 模板
-queue<int> q;
-q.push(start);
-visited[start] = true;
-while (!q.empty()) {
-    int cur = q.front();  // 获取队首
-    q.pop();              // 删除队首
-    // 处理 cur 的邻接节点
-    for (int next : neighbors) {
-        if (!visited[next]) {
-            visited[next] = true;
-            q.push(next);
-        }
-    }
-}
 
 
 // ==================== 2. priority_queue（优先队列）====================
-// 数据结构：堆（Heap），默认大顶堆（每次弹出最大元素）
-// 应用场景：Dijkstra、贪心算法、Top K 问题、带权 BFS
+// 数据结构：堆，默认大顶堆
+// 应用场景：Dijkstra、贪心、Top K
 
-// 定义：
-priority_queue<int> pq;                          // 大顶堆（默认）
-priority_queue<int, vector<int>, greater<int>> pq_min;  // 小顶堆
+priority_queue<int> pq; 
+priority_queue<int, vector<int>, greater<int>> pq_min;
 
-// 常用函数：
-pq.push(val);           // 插入元素，O(log n)
-pq.pop();               // 删除堆顶元素，无返回值！O(log n)
-pq.top();               // 返回堆顶元素（不删除），O(1)
-pq.empty();             // 判断是否为空，O(1)
-pq.size();              // 返回元素个数，O(1)
+pq.push(val);           // 插入，O(log n)
+pq.pop();               // 删除堆顶，无返回值，O(log n)
+pq.top();               // 返回堆顶，O(1)
+pq.empty();             // 判空，O(1)
+pq.size();              // 大小，O(1)
 
-// 自定义排序（重载运算符）：
 struct Node {
     int x, y, cost;
-    // 重载 < 运算符（必须加 const）
+
     bool operator < (const Node& b) const {
-        return cost > b.cost;  // 小顶堆：cost 小的优先（注意是 >）
+        return cost > b.cost;  // 小顶堆写法：cost 小的优先
     }
 };
-priority_queue<Node> pq;  // 自动按 cost 从小到大弹出
+
+priority_queue<Node> node_pq;
 
 // 注意：
-// 1. 默认大顶堆，重载 < 时写 > 得到小顶堆（反直觉！）
-// 2. 重载函数必须加 const，否则编译错误
-// 3. 不支持遍历，只能通过 pop() 逐个取出
-
-// 示例：Dijkstra 最短路
-priority_queue<Node> pq;
-pq.push({start_x, start_y, 0});
-while (!pq.empty()) {
-    Node cur = pq.top();  // 取出花费最小的节点
-    pq.pop();
-    if (visited[cur.x][cur.y]) continue;
-    visited[cur.x][cur.y] = true;
-    // 更新邻接节点
-    for (int i = 0; i < 4; i++) {
-        int nx = cur.x + dx[i];
-        int ny = cur.y + dy[i];
-        pq.push({nx, ny, cur.cost + weight});
-    }
-}
+// 1. 默认大顶堆
+// 2. 自定义结构体进 priority_queue，通常要重载 <
+// 3. 想让小的先出来，operator< 里常常要反着写
 
 
 // ==================== 3. stack（栈）====================
-// 数据结构：后进先出（LIFO），只能从栈顶插入和删除
+// 数据结构：后进先出（LIFO）
 // 应用场景：DFS、括号匹配、表达式求值、单调栈
 
-// 定义：
 stack<int> st;
 
-// 常用函数：
 st.push(val);           // 入栈，O(1)
-st.pop();               // 出栈，无返回值！O(1)
-st.top();               // 返回栈顶元素（不删除），O(1)
-st.empty();             // 判断是否为空，O(1)
-st.size();              // 返回元素个数，O(1)
+st.pop();               // 出栈，无返回值，O(1)
+st.top();               // 栈顶，O(1)
+st.empty();             // 判空，O(1)
+st.size();              // 大小，O(1)
 
 // 注意：
 // 1. pop() 无返回值，需要先 top() 再 pop()
-// 2. 访问栈顶前必须判断 !st.empty()
-// 3. 不支持遍历
-
-// 示例：DFS 非递归实现
-stack<int> st;
-st.push(start);
-while (!st.empty()) {
-    int cur = st.top();
-    st.pop();
-    if (visited[cur]) continue;
-    visited[cur] = true;
-    // 将邻接节点入栈
-    for (int next : neighbors) {
-        st.push(next);
-    }
-}
+// 2. 访问 top() 前必须判断 !st.empty()
+// 3. stack 不支持遍历
 
 
 // ==================== 4. vector（动态数组）====================
-// 数据结构：可变长数组，支持随机访问
+// 数据结构：动态数组，支持随机访问
 // 应用场景：存储数据、邻接表、动态规划
 
-// 定义：
-vector<int> v;                  // 空数组
-vector<int> v(10);              // 10 个元素，初始化为 0
-vector<int> v(10, 5);           // 10 个元素，初始化为 5
-vector<int> v = {1, 2, 3};      // 初始化列表
+vector<int> v;
+vector<int> v1(10);
+vector<int> v2(10, 5);
+vector<int> v3 = {1, 2, 3};
 
-// 常用函数：
-v.push_back(val);       // 尾部插入，O(1)
-v.pop_back();           // 删除尾部元素，O(1)
-v[i];                   // 访问第 i 个元素，O(1)
-v.front();              // 返回第一个元素，O(1)
-v.back();               // 返回最后一个元素，O(1)
-v.size();               // 返回元素个数，O(1)
-v.empty();              // 判断是否为空，O(1)
-v.clear();              // 清空所有元素，O(n)
-v.resize(n);            // 调整大小为 n，O(n)
-v.insert(it, val);      // 在迭代器 it 位置插入 val，O(n)
-v.erase(it);            // 删除迭代器 it 位置的元素，O(n)
+v.push_back(val);       // 尾插，均摊 O(1)
+v.pop_back();           // 删除尾部，O(1)
+v[i];                   // 随机访问，O(1)
+v.front();              // 首元素
+v.back();               // 尾元素
+v.size();               // 大小
+v.empty();              // 判空
+v.clear();              // 清空
+v.resize(n);            // 改变大小
+v.insert(it, val);      // 中间插入，O(n)
+v.erase(it);            // 中间删除，O(n)
 
-// 遍历：
-for (int i = 0; i < v.size(); i++) {
-    cout << v[i] << " ";
-}
-for (int x : v) {       // 范围 for（推荐）
-    cout << x << " ";
-}
-
-// 排序：
-sort(v.begin(), v.end());           // 升序
-sort(v.begin(), v.end(), greater<int>());  // 降序
+sort(v.begin(), v.end());                    // 升序
+sort(v.begin(), v.end(), greater<int>());    // 降序
 
 // 注意：
-// 1. 下标访问 v[i] 不检查越界，v.at(i) 会检查（慢）
-// 2. size() 返回 size_t（无符号），与 int 比较时注意类型转换
+// 1. v[i] 不检查越界
+// 2. v.at(i) 会检查越界，但更慢
+// 3. size() 返回 size_t，和 int 比较时注意类型
 
 
 // ==================== 5. list（双向链表）====================
 // 数据结构：双向链表，内存不连续
-// 应用场景：频繁在中间/头尾插入删除、不需要随机访问
+// 应用场景：频繁中间插入删除，不需要随机访问
 
-// 定义：
 list<int> l;
 
-// 常用函数：
-l.push_back(val);       // 尾部插入，O(1)
-l.push_front(val);      // 头部插入，O(1) (vector没有这个操作)
-l.pop_back();           // 尾部删除，O(1)
-l.pop_front();          // 头部删除，O(1)
-l.front();              // 返回头部元素，O(1)
-l.back();               // 返回尾部元素，O(1)
-l.empty();              // 判断是否为空，O(1)
-l.size();               // 返回元素个数，O(1)
-l.insert(it, val);      // 在迭代器 it 位置前插入 val，O(1)
-l.erase(it);            // 删除迭代器 it 位置的元素，并返回下一个元素的迭代器，O(1)
-
-// 遍历（不能用下标访问！）：
-for (int x : l) {
-    cout << x << " ";
-}
+l.push_back(val);       // 尾插，O(1)
+l.push_front(val);      // 头插，O(1)
+l.pop_back();           // 删除尾部，O(1)
+l.pop_front();          // 删除头部，O(1)
+l.front();              // 头部元素
+l.back();               // 尾部元素
+l.empty();              // 判空
+l.size();               // 大小
+l.insert(it, val);      // 在 it 前插入，O(1)
+l.erase(it);            // 删除 it，O(1)，返回下一个迭代器
 
 // 注意：
-// 1. 绝对不能使用 l[i] 随机访问！只能用迭代器一步步走。
-// 2. 核心大招：erase(it) 后原迭代器会失效，必须写成 it = l.erase(it) 才能继续往后遍历。
+// 1. list 不能用下标访问
+// 2. list 查找慢，find 是 O(n)
+// 3. erase 后，被删的迭代器失效
 
 
 // ==================== 6. set（集合）====================
-// 数据结构：红黑树，自动排序、自动去重
-// 应用场景：判重、维护有序集合、范围查询
+// 数据结构：红黑树，自动排序，自动去重
+// 应用场景：判重、有序集合、范围查询
 
-// 定义：
 set<int> s;
 
-// 常用函数：
-s.insert(val);          // 插入元素，O(log n)
-s.erase(val);           // 删除元素，O(log n)
-s.find(val);            // 查找元素，返回迭代器，O(log n)
-s.count(val);           // 统计个数（0 或 1），O(log n)
-s.size();               // 返回元素个数，O(1)
-s.empty();              // 判断是否为空，O(1)
-s.clear();              // 清空所有元素，O(n)
-s.begin();              // 返回第一个元素的迭代器，O(1)
-s.end();                // 返回最后一个元素之后的迭代器，O(1)
-s.lower_bound(val);     // 第一个 >= val 的元素，O(log n)
-s.upper_bound(val);     // 第一个 > val 的元素，O(log n)
-
-// 判断元素是否存在：
-if (s.find(val) != s.end()) { /* 存在 */ }
-if (s.count(val)) { /* 存在（更简洁）*/ }
-
-// 遍历（自动排序）：
-for (int x : s) {
-    cout << x << " ";
-}
-
-// 示例：BFS 判重
-set<string> visited;
-if (visited.find(state) == visited.end()) {  // 未访问过
-    visited.insert(state);
-    q.push(state);
-}
+s.insert(val);          // 插入，O(log n)
+s.erase(val);           // 删除，O(log n)
+s.find(val);            // 查找，O(log n)
+s.count(val);           // 是否存在，O(log n)
+s.lower_bound(val);     // 第一个 >= val
+s.upper_bound(val);     // 第一个 > val
 
 // 注意：
-// 1. 自动排序，插入/查找/删除都是 O(log n)
-// 2. 不能通过下标访问，只能通过迭代器
-// 3. 自动去重，重复插入无效
+// 1. set 自动排序
+// 2. set 自动去重
+// 3. set 中元素不能直接修改，想改只能 erase 后 insert
 
 
 // ==================== 7. unordered_set（无序集合）====================
-// 数据结构：哈希表，不排序、自动去重
-// 应用场景：快速判重（比 set 快）
+// 数据结构：哈希表，不排序，自动去重
+// 应用场景：快速判重
 
-// 定义：
 unordered_set<int> us;
 
-// 常用函数（与 set 相同）：
-us.insert(val);         // 插入，O(1)
-us.erase(val);          // 删除，O(1)
-us.find(val);           // 查找，O(1)
-us.count(val);          // 统计，O(1)
-us.size();              // 大小，O(1)
-us.empty();             // 判空，O(1)
-
-// 示例：快速判重
-unordered_set<string> visited;
-if (visited.find(state) == visited.end()) {
-    visited.insert(state);
-}
+us.insert(val);         // 插入，均摊 O(1)
+us.erase(val);          // 删除，均摊 O(1)
+us.find(val);           // 查找，均摊 O(1)
+us.count(val);          // 判断存在，均摊 O(1)
 
 // 注意：
-// 1. 比 set 快（O(1) vs O(log n)），但不排序
-// 2. 不支持 lower_bound/upper_bound
+// 1. unordered_set 不排序
+// 2. 不支持 lower_bound / upper_bound
+// 3. key 必须可以哈希
 
 
 // ==================== 8. map（映射）====================
-// 数据结构：红黑树，存储键值对，按键排序
-// 应用场景：统计频率、建立映射关系
+// 数据结构：红黑树，按 key 排序
+// 应用场景：统计频率、有序映射
 
-// 定义：
-map<string, int> m;
+map<string, int> mp;
 
-// 常用函数：
-m[key] = value;         // 插入/修改，O(log n)
-m.erase(key);           // 删除键，O(log n)
-m.find(key);            // 查找键，返回迭代器，O(log n)
-m.count(key);           // 判断键是否存在（0 或 1），O(log n)
-m.size();               // 返回键值对个数，O(1)
-m.empty();              // 判断是否为空，O(1)
-
-// 遍历（按键排序）：
-for (auto& p : m) {
-    cout << p.first << ": " << p.second << endl;  // first 是键，second 是值
-}
-
-// 示例：统计字符串出现次数
-map<string, int> cnt;
-for (string s : words) {
-    cnt[s]++;  // 自动初始化为 0
-}
+mp[key] = value;        // 插入或修改，O(log n)
+mp.erase(key);          // 删除，O(log n)
+mp.find(key);           // 查找，O(log n)
+mp.count(key);          // 判断存在，O(log n)
 
 // 注意：
-// 1. m[key] 若 key 不存在，会自动创建并初始化为 0
-// 2. 按键排序，操作都是 O(log n)
+// 1. mp[key] 如果 key 不存在，会自动创建
+// 2. map 按 key 有序
+// 3. key 不能直接修改，value 可以修改
 
 
 // ==================== 9. unordered_map（无序映射）====================
-// 数据结构：哈希表，存储键值对，不排序
-// 应用场景：快速查找映射关系（比 map 快）
+// 数据结构：哈希表，不按 key 排序
+// 应用场景：快速映射、快速计数
 
-// 定义：
-unordered_map<string, int> um;
+unordered_map<string, int> ump;
 
-// 常用函数（与 map 相同）：
-um[key] = value;        // 插入/修改，O(1)
-um.erase(key);          // 删除，O(1)
-um.find(key);           // 查找，O(1)
-um.count(key);          // 判断存在，O(1)
-
-// 示例：快速统计
-unordered_map<int, int> cnt;
-for (int x : arr) {
-    cnt[x]++;
-}
+ump[key] = value;       // 插入或修改，均摊 O(1)
+ump.erase(key);         // 删除，均摊 O(1)
+ump.find(key);          // 查找，均摊 O(1)
+ump.count(key);         // 判断存在，均摊 O(1)
 
 // 注意：
-// 1. 比 map 快，但不排序
-// 2. 键必须可哈希（int、string 可以，自定义结构体需要写哈希函数）
+// 1. unordered_map 不排序
+// 2. 不支持 lower_bound / upper_bound
+// 3. key 必须可以哈希
+// 4. int、long long、string 可以直接作为 key
+// 5. pair、自定义 struct 通常不能直接作为 key，需要自定义哈希
 
 
 // ==================== 10. pair（键值对）====================
-// 数据结构：存储两个元素的结构体
-// 应用场景：返回多个值、存储坐标、Dijkstra 中存储 (距离, 节点)
 
-// 定义：
-pair<int, int> p;
-pair<int, string> p2 = {1, "hello"};
-pair<int, int> p3 = make_pair(1, 2);
+pair<int, int> p = {1, 2};
 
-// 访问：
 p.first;                // 第一个元素
 p.second;               // 第二个元素
 
-// 比较：
-// 先比较 first，相同则比较 second
+// pair 默认先比较 first，再比较 second
 pair<int, int> a = {1, 2};
 pair<int, int> b = {1, 3};
-if (a < b) { /* a.first == b.first，比较 second，2 < 3 */ }
 
-// 示例：Dijkstra 中存储 (距离, 节点)
-priority_queue<pair<int, int>, vector<pair<int, int>>, greater<pair<int, int>>> pq;
-pq.push({0, start});  // {距离, 节点}
-while (!pq.empty()) {
-    auto [dist, node] = pq.top();  // C++17 结构化绑定
-    pq.pop();
+if (a < b) {
+    // true
 }
 
 
 // ==================== 11. algorithm（算法库）====================
-// 常用函数：
 
-// 排序：
-sort(v.begin(), v.end());                   // 升序，O(n log n)
-sort(v.begin(), v.end(), greater<int>());   // 降序
+sort(v.begin(), v.end());                          // 升序
+sort(v.begin(), v.end(), greater<int>());          // 降序
 
-// 查找：
-find(v.begin(), v.end(), val);              // 返回迭代器，O(n)
-binary_search(v.begin(), v.end(), val);     // 二分查找（需有序），返回 bool，O(log n)
-lower_bound(v.begin(), v.end(), val);       // 第一个 >= val 的位置，O(log n)
-upper_bound(v.begin(), v.end(), val);       // 第一个 > val 的位置，O(log n)
+find(v.begin(), v.end(), val);                     // 线性查找
+binary_search(v.begin(), v.end(), val);            // 二分查找，要求有序
+lower_bound(v.begin(), v.end(), val);              // 第一个 >= val
+upper_bound(v.begin(), v.end(), val);              // 第一个 > val
 
-// 最值：
-max(a, b);                                  // 返回较大值
-min(a, b);                                  // 返回较小值
-*max_element(v.begin(), v.end());           // 返回最大元素，O(n)
-*min_element(v.begin(), v.end());           // 返回最小元素，O(n)
+max(a, b);
+min(a, b);
+*max_element(v.begin(), v.end());
+*min_element(v.begin(), v.end());
 
-// 反转：
-reverse(v.begin(), v.end());                // 反转数组，O(n)
+reverse(v.begin(), v.end());
 
-// 去重（需先排序）：
 sort(v.begin(), v.end());
-v.erase(unique(v.begin(), v.end()), v.end());  // 去重，O(n)
+v.erase(unique(v.begin(), v.end()), v.end());
 
-// 填充：
-fill(v.begin(), v.end(), val);              // 填充为 val，O(n)
-
-
-// ==================== 总结对比 ====================
-// 容器           底层结构    有序   去重   时间复杂度      应用场景
-// queue          队列        ×      ×      O(1)           BFS、任务调度
-// priority_queue 堆          ×      ×      O(log n)       Dijkstra、Top K
-// stack          栈          ×      ×      O(1)           DFS、括号匹配
-// vector         动态数组    ×      ×      O(1) 访问      存储数据
-// list           双向链表    ×      ×      O(1) 增删      频繁中间增删
-// set            红黑树      √      √      O(log n)       判重、有序集合
-// unordered_set  哈希表      ×      √      O(1)           快速判重
-// map            红黑树      √      √      O(log n)       有序映射
-// unordered_map  哈希表      ×      √      O(1)           快速映射
-
-// 选择建议：
-// 1. 需要排序 → set/map
-// 2. 只需判重 → unordered_set
-// 3. 需要最值 → priority_queue
-// 4. 需要顺序处理 → queue（BFS）、stack（DFS）
-// 5. 需要随机访问 → vector
-// 6. 需要频繁中间增删 → list
+fill(v.begin(), v.end(), val);
 ```
 
 ---
@@ -409,164 +251,647 @@ fill(v.begin(), v.end(), val);              // 填充为 val，O(n)
 ## 💡 第二部分：考场实战踩坑与进阶技巧
 
 ### 1. 自定义排序：`sort` vs `set` 的巨大区别
-在考场上，给自定义结构体排序是最常见的需求，但 `sort` 和 `set` 的语法要求完全不同，极易踩坑！
 
-*   **对 `sort` 排序（推荐写独立 `cmp` 函数）**
-    `sort` 是一个函数，可以直接传入独立的比较函数，语法最简单直观。
-    ```cpp
-    struct Student { int id, score; };
-    // 独立的 cmp 函数
-    bool cmp(Student a, Student b) { return a.score < b.score; } 
-    
-    // 使用：
-    sort(arr, arr + n, cmp);
-    ```
+在考场上，给自定义结构体排序是最常见的需求，但 `sort` 和 `set` 的语法要求完全不同，极易踩坑。
 
-*   **把结构体塞进 `set` / `map`（推荐在结构体内重载 `<`）**
-    `set` 是一个容器模板，**不能直接传函数名**。如果强行写外挂 `cmp`，必须写成复杂的“仿函数”（Functor）。因此，考场上最稳妥的做法是**直接在结构体内部重载 `<` 运算符**。
-    ```cpp
-    struct Student {
-        int id, score;
-        // 必须加两个 const！
-        bool operator < (const Student& b) const {
-            return score < b.score; 
-        }
-    };
-    
-    // 使用：
-    set<Student> s; // 直接塞，set 会自动调用你写的 < 规则
-    ```
+#### 对 `sort` 排序：推荐写独立 `cmp` 函数
 
-### 2. 为什么存坐标用 `set` 而不是速度更快的 `unordered_set`？
-从算法逻辑上，单纯存坐标并查找，确实不需要排序，哈希表（`unordered_set`）是理论最优解。但 C++ 有一个底层硬伤：
-
-*   **致命坑点**：C++ 官方**没有为 `pair` 提供哈希函数**！如果你在考场上写下 `unordered_set<pair<int, int>>`，会直接**编译报错（CE）**！
-*   **考场最优解**：直接使用 `set<pair<int, int>>`。虽然底层红黑树会多余地排个序，但 C++ 官方已经帮 `pair` 写好了比较规则（先比 first 再比 second），一行代码都不用多写，且 $$O(\log N)$$ 的时间复杂度在 $$N \le 10^5$$ 的数据量下完全不会超时。
-*   **极限操作（坐标压缩）**：如果非要用 `unordered_set` 追求极限速度，可以把二维坐标压缩成一个 `long long`：
-    ```cpp
-    unordered_set<long long> locate;
-    long long hash_val = (long long)x * 2000000000LL + y; // 降维打击
-    locate.insert(hash_val);
-    ```
-
-### 3. `priority_queue` 的重载运算符（反直觉大坑）
-普通排序时，`return a < b` 代表从小到大排。但在 `priority_queue`（优先队列）中，逻辑是**反过来**的！
-
-*   **底层逻辑**：优先队列默认是**大顶堆**。它通过你重载的 `<` 符号来判断，**谁在 `<` 的右边（谁更大），谁就浮到堆顶**。
-*   **如何写小顶堆（如 Dijkstra 算法）**：为了让 `cost` 最小的节点浮到堆顶，我们必须“欺骗” C++，故意把逻辑写反（用 `>`）。
-    ```cpp
-    struct Node {
-        int id, cost;
-        bool operator < (const Node& b) const {
-            return cost > b.cost;  // 故意写反！得到小顶堆
-        }
-    };
-    ```
-
-### 4. `map` 与 `set` 的底层灵魂：键（Key）的绝对只读性
-*   **`map<Key, Value>` 的本质是“带锁的柜子”**：
-    *   **键（Key）**：柜子门上的号码牌。一旦贴上去，**绝对不能修改**（底层强制加了 `const`）。改了号码牌，红黑树就全乱了。
-    *   **值（Value）**：柜子里面的东西。可以随意修改（如 `m["alice"]++`）。
-*   **`set<Key>` 的本质是“刻在石头上的名字”**：
-    *   它**只有键（Key），没有值（Value）**。
-    *   一旦 `insert` 进去，元素就是**只读（const）**的。绝对不能通过迭代器修改它的值。如果非要改，只能 `erase` 删掉旧的，再 `insert` 新的。
-*   **考场口诀**：
-    *   需要**“查找 + 频繁修改数据”**（如统计频次、更新最早时间） $\rightarrow$ 无脑选 `map` / `unordered_map`。
-    *   需要**“自动排序 + 自动去重 + 只看不改”** $\rightarrow$ 无脑选 `set`。
-
-### 5. 到底什么时候必须重载 `<` 运算符？
-在 CSP 考场上，只有以下 3 个场景**绝对逃不掉**重载 `<`：
-1.  **`priority_queue`（优先队列/堆）**：只要塞入自定义 `struct`，必写重载，否则 CE。
-2.  **把 `struct` 作为 `map` 或 `set` 的键（Key）**：比如用二维坐标 `struct Point` 作为 `map` 的键统计频次，必须重载 `<` 让红黑树知道怎么建树。
-3.  **`set` 的动态维护与二分查找**：当需要用 `set` 动态插入/删除自定义结构体，并使用 `lower_bound` 快速查找时。
-
-### 6. 迭代器（Iterator）的正确打开方式与 `lower_bound` 神技
-`lower_bound` 返回的是迭代器（可视为指向红黑树节点的“高级指针”）。考场上拿到迭代器后，必须熟练掌握以下“三把钥匙”：
-1.  **验明正身（防 RE 神器）**：拿到迭代器第一件事，永远是判断 `if (it == s.end())`。如果不检查直接用，一旦没找到就会越界 RE。
-2.  **提取数据（解引用）**：确认安全后，用 `*it`（基本类型）或 `it->name`（结构体）获取里面的值。
-3.  **前后移动（考场高阶技巧）**：
-    *   `lower_bound(val)` 找的是**第一个 $\ge val$ 的元素**。
-    *   **怎么找最后一个 $< val$ 的元素？** 先用 `lower_bound` 找到位置，判断 `if (it != s.begin())` 后，直接 **`it--`** 往回退一步即可！
-
-### 7. 容器的逆序操作：从大到小排序与反向遍历（神技）
-考场上经常遇到需要“从大到小”处理数据的场景，STL 提供了两种极其优雅的解决方案：
-
-*   **方法一：从根源上倒排（直接使用 `greater`）**
-    不仅 `int` 可以用 `greater<int>`，`pair` 也完全可以直接套用！C++ 官方已经为 `pair` 写好了大于号 `>` 的比较规则（先比 `first`，相同再比 `second`）。
-    ```cpp
-    // 定义一个从大到小排序的 set，里面存 pair
-    set<pair<int, int>, greater<pair<int, int>>> s;
-    s.insert({1, 5});
-    s.insert({3, 8});
-    s.insert({3, 2});
-    // 遍历输出顺序：{3, 8} -> {3, 2} -> {1, 5}
-    ```
-    👉 *适用场景*：核心逻辑就是每次都要取最大值（例如直接用 `s.begin()` 拿最大元素）。
-
-*   **方法二：只在遍历时倒着看（使用反向迭代器 `rbegin` / `rend`）**
-    如果你不想改变容器默认从小到大的排序规则（比如还需要用 `lower_bound` 进行二分查找），只是想在输出时从大到小，可以直接使用反向迭代器。
-    *   `rbegin()`：指向最后一个元素（Reverse Begin）。
-    *   `rend()`：指向第一个元素的前一个位置（Reverse End）。
-    ```cpp
-    map<int, string> m;
-    m[1] = "Alice"; m[5] = "Bob"; m[3] = "Charlie";
-
-    // 注意：反向迭代器往前走依然是 ++，但物理上是往回退！
-    for (auto it = m.rbegin(); it != m.rend(); ++it) {
-        cout << it->first << " -> " << it->second << endl;
-    }
-    // 输出顺序：5 -> 3 -> 1
-    ```
-    👉 *适用场景*：平时需要从小到大处理或二分查找，仅在特定时刻（如输出答案）需要逆序。
-
-### 8. 迭代器的绝对领域：左闭右开 `[begin(), end())`
-在 C++ STL 中，所有容器的迭代器都严格遵循**“左闭右开”**原则：
-*   **`begin()`**：精准指向容器的**第 1 个元素**。直接 `*begin()` 拿到的就是首元素。
-*   **`end()`**：指向**最后一个元素的下一个位置**（一个虚拟的、越界的位置）。它本身不存储任何有效数据，仅仅作为“遍历结束的标志”。
-*   **空容器陷阱**：当容器为空时，`begin()` 会直接等于 `end()`。此时对 `begin()` 解引用会导致程序崩溃。
-```text
-示例： list<int> l = {10, 20, 30};
-      10        20        30       (越界/不存在)
-      ↑                             ↑
-   l.begin()                     l.end()
-```
-
-### 9. 告别又臭又长的迭代器类型：`auto` 与 `decltype` 神法
-手写 `list<int>::iterator` 或 `map<string, vector<int>>::iterator` 既浪费时间又容易拼错。
-*   **单变量声明：无脑用 `auto`**
-    ```cpp
-    auto it = l.begin(); 
-    auto it2 = find(l.begin(), l.end(), 3);
-    ```
-*   **定义数组/容器时：用 `decltype` 魔法**
-    `decltype` 的意思是 **Declare Type（声明的类型）**。它可以让编译器“照抄”括号里表达式的类型。
-    ```cpp
-    // 意思是：l.begin() 是啥类型，我的 vector 就存啥类型！
-    vector<decltype(l.begin())> pos(100005); 
-    ```
-    这招在需要开数组存储迭代器时，简直是降维打击！
-
-### 10. 链表（`list`）满分大招：数组缓存迭代器，化 $$O(N^2)$$ 为 $$O(1)$$
-`list` 的插入和删除极快（$$O(1)$$），但查找极慢（`find` 是 $$O(N)$$）。如果在 $$N$$ 次循环中每次都用 `find` 找人，总复杂度会飙升到 $$O(N^2)$$ 导致 TLE。
-
-**破局核心**：`list` 插入或删除元素时，**其他元素的迭代器绝对不会失效**（不像 `vector` 会内存大搬家）。
-**满分战术**：开一个数组，把每次 `insert` 返回的迭代器直接存起来！下次找人时，直接查数组，瞬间实现 $$O(1)$$ 定位！
 ```cpp
-list<int> l;
-l.push_back(1);
+struct Student {
+    int id, score;
+};
 
-// 核心魔法：开一个数组 pos，专门存每个数字在 list 中的迭代器位置
-vector<decltype(l.begin())> pos(100005);
-pos[1] = l.begin(); // 记录 1 号的位置
-
-for (int i = 2; i <= n; i++) {
-    int k = ...; // 要插在 k 号旁边
-    auto it = pos[k]; // O(1) 瞬间找到 k 号的位置，不需要 find！
-    
-    // insert 会返回新插入元素的迭代器，直接存入 pos 数组！
-    pos[i] = l.insert(it, i); 
+bool cmp(Student a, Student b) {
+    return a.score < b.score;
 }
 
-// 删除时同样 O(1) 秒杀：
-l.erase(pos[x]);
+sort(arr, arr + n, cmp);
+```
+
+#### 把结构体塞进 `set` / `map`：推荐在结构体内重载 `<`
+
+```cpp
+struct Student {
+    int id, score;
+
+    bool operator < (const Student& b) const {
+        return score < b.score;
+    }
+};
+
+set<Student> s;
+```
+
+注意：
+
+```cpp
+bool operator < (const Student& b) const
+```
+
+后面的两个 `const` 很重要：
+
+- 参数 `const Student& b`：避免拷贝，保证不修改对方；
+- 函数末尾 `const`：保证比较时不修改自己。
+
+---
+
+### 2. 为什么存坐标用 `set` 而不是速度更快的 `unordered_set`？
+
+从算法逻辑上看，单纯存坐标并查找，确实不需要排序，哈希表理论上更快。
+
+但 C++ 有一个常见坑：
+
+> C++ 标准库没有给 `pair<int, int>` 默认提供哈希函数。
+
+所以这句在很多环境下会直接编译错误：
+
+```cpp
+unordered_set<pair<int, int>> s;
+```
+
+考场最稳做法：
+
+```cpp
+set<pair<int, int>> s;
+```
+
+因为 `pair` 自带比较规则，可以直接放入 `set`。
+
+如果非要使用 `unordered_set`，可以把二维坐标压成一个 `long long`：
+
+```cpp
+long long encode(int x, int y) {
+    return (long long)x * 2000000000LL + y;
+}
+
+unordered_set<long long> locate;
+locate.insert(encode(x, y));
+```
+
+---
+
+### 3. `priority_queue` 的重载运算符：反直觉大坑
+
+`priority_queue` 默认是大顶堆。
+
+如果想让 `cost` 小的元素先出来，需要反着写：
+
+```cpp
+struct Node {
+    int id, cost;
+
+    bool operator < (const Node& b) const {
+        return cost > b.cost;
+    }
+};
+```
+
+口诀：
+
+```text
+priority_queue 想要小的先出，operator< 里面常常写 >
+```
+
+---
+
+### 4. `map` 与 `set` 的底层灵魂：Key 的绝对只读性
+
+#### `map<Key, Value>`
+
+`map` 的本质是：
+
+```text
+key 是柜子门牌号，value 是柜子里的东西
+```
+
+- key 不能修改；
+- value 可以修改。
+
+例如：
+
+```cpp
+map<string, int> mp;
+mp["alice"]++;
+```
+
+这里修改的是 value。
+
+#### `set<Key>`
+
+`set` 只有 key，没有 value。
+
+所以元素一旦插入，不能直接修改。
+
+如果非要改：
+
+```cpp
+s.erase(old_value);
+s.insert(new_value);
+```
+
+---
+
+### 5. 到底什么时候必须重载 `<` 运算符？
+
+在 CSP 考场上，下面几个场景很常见：
+
+1. `priority_queue` 存自定义结构体；
+2. `set` 存自定义结构体；
+3. `map` 的 key 是自定义结构体；
+4. 需要让结构体支持排序。
+
+示例：
+
+```cpp
+struct Point {
+    int x, y;
+
+    bool operator < (const Point& b) const {
+        if (x != b.x) return x < b.x;
+        return y < b.y;
+    }
+};
+```
+
+---
+
+### 6. 迭代器与 `lower_bound` 神技
+
+`lower_bound(val)` 的含义：
+
+```text
+找第一个 >= val 的位置
+```
+
+对 `set`：
+
+```cpp
+auto it = s.lower_bound(val);
+```
+
+拿到迭代器之后，第一件事通常是检查：
+
+```cpp
+if (it != s.end()) {
+    cout << *it << endl;
+}
+```
+
+找最后一个 `< val` 的元素：
+
+```cpp
+auto it = s.lower_bound(val);
+
+if (it != s.begin()) {
+    --it;
+    cout << *it << endl;
+}
+```
+
+注意：
+
+- `end()` 不能解引用；
+- `begin()` 再 `--` 会炸；
+- 空容器时 `begin() == end()`。
+
+---
+
+### 7. 容器的逆序操作：从大到小排序与反向遍历
+
+#### 方法一：使用 `greater`
+
+```cpp
+set<int, greater<int>> s;
+```
+
+对 `pair` 也可以：
+
+```cpp
+set<pair<int, int>, greater<pair<int, int>>> s;
+```
+
+`pair` 的比较规则依旧是：
+
+```text
+先比 first，再比 second
+```
+
+只不过整体变成从大到小。
+
+#### 方法二：使用反向迭代器
+
+```cpp
+map<int, string> mp;
+
+for (auto it = mp.rbegin(); it != mp.rend(); ++it) {
+    cout << it->first << " " << it->second << endl;
+}
+```
+
+注意：
+
+```cpp
+++it
+```
+
+对反向迭代器来说，逻辑上是往前走，但物理上是从大到小遍历。
+
+---
+
+### 8. 迭代器的绝对领域：左闭右开 `[begin(), end())`
+
+STL 容器统一遵循：
+
+```text
+[begin(), end())
+```
+
+含义：
+
+- `begin()` 指向第一个元素；
+- `end()` 指向最后一个元素的下一个位置；
+- `end()` 不能解引用；
+- 空容器时 `begin() == end()`。
+
+示例：
+
+```text
+list<int> l = {10, 20, 30};
+
+    10        20        30       虚拟位置
+    ↑                             ↑
+ begin()                         end()
+```
+
+---
+
+### 9. 告别又臭又长的迭代器类型：`auto` 与 `decltype`
+
+手写复杂迭代器类型很麻烦：
+
+```cpp
+map<string, vector<int>>::iterator it;
+```
+
+考场推荐：
+
+```cpp
+auto it = mp.begin();
+```
+
+如果要定义“存迭代器”的容器，可以用 `decltype`：
+
+```cpp
+list<int> l;
+vector<decltype(l.begin())> pos(100005);
+```
+
+含义：
+
+```text
+l.begin() 是什么类型，pos 里就存什么类型
+```
+
+但是要注意：
+
+> 如果编号范围很大、不连续，就不要用 vector 存迭代器，要用 unordered_map。
+
+---
+
+### 10. 链表（`list`）满分大招：`unordered_map` 缓存迭代器，化 $$O(N^2)$$ 为均摊 $$O(1)$$
+
+`list` 的插入和删除极快，都是 $$O(1)$$。
+
+但是 `list` 有一个巨大缺点：
+
+> 查找极慢。
+
+比如：
+
+```cpp
+auto it = find(l.begin(), l.end(), x);
+```
+
+这是线性查找，复杂度是：
+
+$$O(N)$$
+
+如果每次操作都这么找，总复杂度可能变成：
+
+$$O(N^2)$$
+
+直接 TLE。
+
+---
+
+#### 破局核心
+
+`list` 有一个非常重要的性质：
+
+> 插入或删除某个节点时，其他节点的迭代器不会失效。
+
+更准确地说：
+
+- `insert` 不会让已有元素的迭代器失效；
+- `erase(it)` 只会让被删除的那个迭代器失效；
+- 其他节点的迭代器仍然有效。
+
+所以我们可以用一个映射表记录：
+
+```text
+某个元素 x 当前在 list 里的位置
+```
+
+如果元素编号很小且连续，可以用 `vector`：
+
+```cpp
+vector<list<int>::iterator> pos(max_id + 1);
+```
+
+但是如果元素编号很大、不连续，例如题目里内存块编号可能达到：
+
+$$2^{30}$$
+
+那就不能直接拿编号当数组下标。
+
+这时应该使用：
+
+```cpp
+unordered_map<int, list<int>::iterator> pos;
+```
+
+---
+
+#### 核心写法
+
+```cpp
+list<int> l;
+
+// key：元素编号
+// value：该元素在 list 中的迭代器
+unordered_map<int, list<int>::iterator> pos;
+```
+
+含义：
+
+```text
+pos[x] = x 在链表中的位置
+```
+
+以后想找 `x`，不要再：
+
+```cpp
+find(l.begin(), l.end(), x); // O(N)
+```
+
+而是：
+
+```cpp
+auto it = pos[x]; // 均摊 O(1)
+```
+
+---
+
+#### LRU 模板
+
+```cpp
+#include <bits/stdc++.h>
+using namespace std;
+
+int main() {
+    int capacity = 3;
+
+    list<int> cache;
+
+    // 记录每个元素在 list 中的位置
+    unordered_map<int, list<int>::iterator> pos;
+
+    auto access = [&](int x) {
+        // 命中
+        if (pos.count(x)) {
+            cache.erase(pos[x]);
+            cache.push_front(x);
+            pos[x] = cache.begin();
+        }
+        // 未命中
+        else {
+            if ((int)cache.size() == capacity) {
+                int old = cache.back();
+                cache.pop_back();
+                pos.erase(old);
+            }
+
+            cache.push_front(x);
+            pos[x] = cache.begin();
+        }
+    };
+
+    access(1);
+    access(2);
+    access(3);
+    access(1);
+    access(4);
+
+    for (int x : cache) {
+        cout << x << " ";
+    }
+
+    return 0;
+}
+```
+
+最后链表中：
+
+```text
+队首是最近使用，队尾是最久未使用
+```
+
+---
+
+#### 用在缓存模拟题中
+
+如果有多个缓存组，可以写：
+
+```cpp
+vector<list<int>> cache(N);
+vector<unordered_map<int, list<int>::iterator>> pos(N);
+vector<unordered_set<int>> dirty(N);
+```
+
+含义：
+
+```text
+cache[g]：第 g 组的 LRU 链表
+pos[g][a]：内存块 a 在第 g 组链表中的位置
+dirty[g]：第 g 组里哪些块被写过，需要写回内存
+```
+
+判断命中：
+
+```cpp
+if (pos[g].count(a)) {
+    // 命中
+}
+```
+
+命中后移动到队首：
+
+```cpp
+cache[g].erase(pos[g][a]);
+cache[g].push_front(a);
+pos[g][a] = cache[g].begin();
+```
+
+未命中且需要替换队尾：
+
+```cpp
+int old = cache[g].back();
+cache[g].pop_back();
+
+pos[g].erase(old);
+dirty[g].erase(old);
+```
+
+插入新块：
+
+```cpp
+cache[g].push_front(a);
+pos[g][a] = cache[g].begin();
+```
+
+---
+
+#### `unordered_map` 使用限制：没有排序，以及 key 必须可以哈希
+
+`unordered_map` 的优点是查找快，均摊 $$O(1)$$。
+
+但是它也有几个重要限制。
+
+##### 1. 不排序
+
+`unordered_map` 不会按照 key 从小到大排列。
+
+```cpp
+unordered_map<int, int> mp;
+mp[3] = 30;
+mp[1] = 10;
+mp[2] = 20;
+
+for (auto p : mp) {
+    cout << p.first << " " << p.second << endl;
+}
+```
+
+输出顺序是不确定的。
+
+所以如果你需要：
+
+- 按 key 从小到大遍历；
+- 找最小 key；
+- 找最大 key；
+- 找前驱；
+- 找后继；
+
+那就不要用 `unordered_map`，应该用：
+
+```cpp
+map
+set
+```
+
+##### 2. 不支持 `lower_bound` / `upper_bound`
+
+`map` 支持：
+
+```cpp
+mp.lower_bound(x);
+mp.upper_bound(x);
+```
+
+但 `unordered_map` 不支持。
+
+因为哈希表内部没有顺序。
+
+##### 3. key 必须可以哈希
+
+`unordered_map<Key, Value>` 要求：
+
+```text
+Key 必须能被哈希，并且能判断相等
+```
+
+可以直接作为 key 的常见类型：
+
+```cpp
+unordered_map<int, int> mp1;
+unordered_map<long long, int> mp2;
+unordered_map<string, int> mp3;
+```
+
+但是下面这种很多环境下不能直接用：
+
+```cpp
+unordered_map<pair<int, int>, int> mp; // 可能 CE
+```
+
+因为标准库通常没有给 `pair<int, int>` 提供默认哈希。
+
+考场建议把二维坐标压成 `long long`：
+
+```cpp
+long long encode(int x, int y) {
+    return ((long long)x << 32) ^ (unsigned int)y;
+}
+
+unordered_map<long long, int> mp;
+mp[encode(x, y)]++;
+```
+
+自定义结构体也不能直接作为 key：
+
+```cpp
+struct Point {
+    int x, y;
+};
+
+unordered_map<Point, int> mp; // 通常 CE
+```
+
+如果非要用，需要自己写：
+
+- `operator==`
+- 哈希函数
+
+示例：
+
+```cpp
+struct Point {
+    int x, y;
+
+    bool operator == (const Point& other) const {
+        return x == other.x && y == other.y;
+    }
+};
+
+struct PointHash {
+    size_t operator()(const Point& p) const {
+        return hash<long long>()(((long long)p.x << 32) ^ (unsigned int)p.y);
+    }
+};
+
+unordered_map<Point, int, PointHash> mp;
+```
+
+---
+
+#### `unordered_map + list` 考场口诀
+
+```text
+list 负责维护顺序；
+unordered_map 负责 O(1) 定位；
+删除 list 节点时，一定同步 erase 掉 unordered_map 里的记录；
+编号小且连续，可以用 vector 存迭代器；
+编号大且稀疏，必须用 unordered_map 存迭代器；
+unordered_map 不排序，不能 lower_bound；
+unordered_map 的 key 必须可以哈希。
 ```
